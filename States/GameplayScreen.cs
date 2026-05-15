@@ -1,46 +1,53 @@
 using DungeonCrawler.Core;
 using DungeonCrawler.Input;
+using DungeonCrawler.Player;
+using DungeonCrawler.Rendering;
+using DungeonCrawler.World;
 using Raylib_cs;
-using System.Numerics;
 
 namespace DungeonCrawler.States;
 
-public sealed class GameplayScreen
+public sealed class GameplayScreen : IDisposable
 {
     private readonly GameStateController _stateController;
-    private Vector2 _playerPosition = new(0, 0);
+    private readonly DungeonMap _map;
+    private readonly PlayerController _player;
+    private readonly TextureManager _textures;
+    private readonly RaycastRenderer _renderer;
 
     public GameplayScreen(GameStateController stateController)
     {
         _stateController = stateController;
+        _map = new DungeonMap();
+        _player = new PlayerController(_map);
+        _textures = new TextureManager();
+        _renderer = new RaycastRenderer(_map, _textures.DungeonTexture);
     }
 
     public void Update(InputHandler input, float deltaTime)
     {
-        const float speed = 200f;
+        _player.Update(deltaTime);
 
-        if (Raylib.IsKeyDown(KeyboardKey.W)) _playerPosition.Y -= speed * deltaTime;
-        if (Raylib.IsKeyDown(KeyboardKey.S)) _playerPosition.Y += speed * deltaTime;
-        if (Raylib.IsKeyDown(KeyboardKey.A)) _playerPosition.X -= speed * deltaTime;
-        if (Raylib.IsKeyDown(KeyboardKey.D)) _playerPosition.X += speed * deltaTime;
-
-        // Escape during gameplay opens pause.
         if (input.BackPressed())
         {
+            Raylib.EnableCursor();
             _stateController.ChangeState(GameState.PauseMenu);
         }
     }
 
     public void Draw()
     {
-        int sw = Raylib.GetScreenWidth();
-        int sh = Raylib.GetScreenHeight();
-        Raylib.DrawRectangle(0, 0, sw, sh, new Color(10, 10, 16, 255));
-        Raylib.DrawRectangle(0, sh / 2, sw, sh / 2, new Color(24, 16, 12, 255));
-        Raylib.DrawText("DUNGEON DEPTHS", 30, 20, 30, Color.Gold);
-        Raylib.DrawText("WASD: Move   ESC: Pause", 30, 56, 20, Color.LightGray);
-        Raylib.DrawText($"Player Pos: {_playerPosition.X:0}, {_playerPosition.Y:0}", 30, 86, 20, Color.Gray);
-        Raylib.DrawLine(sw / 2 - 10, sh / 2, sw / 2 + 10, sh / 2, Color.RayWhite);
-        Raylib.DrawLine(sw / 2, sh / 2 - 10, sw / 2, sh / 2 + 10, Color.RayWhite);
+        Raylib.DisableCursor();
+        _renderer.Draw(_player);
+        _renderer.DrawMinimap(_player);
+
+        Raylib.DrawText("WASD Move | Mouse Look | ESC Pause", 16, Raylib.GetScreenHeight() - 30, 18, Color.LightGray);
+        Raylib.DrawText($"POS {_player.Position.X:0.0},{_player.Position.Y:0.0}  ANG {_player.Angle:0.00}  PITCH {_player.PitchOffset:0}",
+            16, Raylib.GetScreenHeight() - 54, 18, new Color(190, 190, 190, 220));
+    }
+
+    public void Dispose()
+    {
+        _textures.Dispose();
     }
 }

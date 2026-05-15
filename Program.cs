@@ -20,7 +20,7 @@ class Program
         var mainMenu = new MainMenuScreen(stateController);
         var settingsMenu = new SettingsMenuScreen(stateController, settings);
         var controlsMenu = new ControlsMenuScreen(stateController);
-        var gameplay = new GameplayScreen(stateController);
+        using var gameplay = new GameplayScreen(stateController);
         var pauseMenu = new PauseMenuScreen(stateController);
 
         var updates = new Dictionary<GameState, Action<float>>
