@@ -32,38 +32,42 @@ class Program
 
         var draws = new Dictionary<GameState, Action>
         {
-            [GameState.MainMenu] = () => mainMenu.Draw(),
-            [GameState.SettingsMenu] = () => settingsMenu.Draw(),
-            [GameState.ControlsMenu] = () => controlsMenu.Draw(),
-            [GameState.Gameplay] = () => gameplay.Draw(),
+            [GameState.MainMenu] = mainMenu.Draw,
+            [GameState.SettingsMenu] = settingsMenu.Draw,
+            [GameState.ControlsMenu] = controlsMenu.Draw,
+            [GameState.Gameplay] = gameplay.Draw,
             [GameState.PauseMenu] = () => { gameplay.Draw(); pauseMenu.Draw(); }
         };
 
         bool running = true;
         while (running)
         {
-            float dt = Raylib.GetFrameTime();
-
-            // Don't let close requests bypass state behavior.
-            // During gameplay, treat it like pause. Else ignore and keep menu-driven exits.
+            // WindowShouldClose is for OS-level close requests (X button / platform close event).
+            // It should terminate app immediately and must never be reused as pause/menu input.
             if (Raylib.WindowShouldClose())
             {
-                if (stateController.CurrentState == GameState.Gameplay)
-                    stateController.ChangeState(GameState.PauseMenu);
+                running = false;
+                continue;
             }
+
+            float dt = Raylib.GetFrameTime();
 
             if (stateController.CurrentState == GameState.Exiting)
             {
                 running = false;
             }
-            else
+            else if (updates.TryGetValue(stateController.CurrentState, out var update))
             {
-                updates[stateController.CurrentState](dt);
+                // Exactly one state update per frame ensures Escape is processed once.
+                update(dt);
             }
 
             Raylib.BeginDrawing();
             Raylib.ClearBackground(new Color(8, 8, 12, 255));
-            if (draws.TryGetValue(stateController.CurrentState, out var draw)) draw();
+            if (draws.TryGetValue(stateController.CurrentState, out var draw))
+            {
+                draw();
+            }
             Raylib.EndDrawing();
         }
 

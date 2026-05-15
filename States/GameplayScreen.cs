@@ -24,8 +24,8 @@ public sealed class GameplayScreen
         if (Raylib.IsKeyDown(KeyboardKey.A)) _playerPosition.X -= speed * deltaTime;
         if (Raylib.IsKeyDown(KeyboardKey.D)) _playerPosition.X += speed * deltaTime;
 
-        // Escape in gameplay ALWAYS opens pause.
-        if (input.PausePressed())
+        // Escape during gameplay opens pause.
+        if (input.BackPressed())
         {
             _stateController.ChangeState(GameState.PauseMenu);
         }

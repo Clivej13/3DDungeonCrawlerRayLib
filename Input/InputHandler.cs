@@ -4,6 +4,7 @@ namespace DungeonCrawler.Input;
 
 /// <summary>
 /// Centralized input queries for state-aware behavior.
+/// Escape is intentionally exposed as BackPressed so each state handles it exactly once.
 /// </summary>
 public sealed class InputHandler
 {
@@ -13,6 +14,5 @@ public sealed class InputHandler
     public bool MoveRightPressed() => Raylib.IsKeyPressed(KeyboardKey.D) || Raylib.IsKeyPressed(KeyboardKey.Right);
     public bool ConfirmPressed() => Raylib.IsKeyPressed(KeyboardKey.Enter);
     public bool BackPressed() => Raylib.IsKeyPressed(KeyboardKey.Escape);
-    public bool PausePressed() => Raylib.IsKeyPressed(KeyboardKey.Escape);
     public float MouseWheelDelta() => Raylib.GetMouseWheelMove();
 }
