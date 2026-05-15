@@ -1,42 +1,70 @@
-﻿using Raylib_cs;
-using System.Numerics;
+﻿using DungeonCrawler.Core;
+using DungeonCrawler.Input;
+using DungeonCrawler.States;
+using Raylib_cs;
 
 class Program
 {
     static void Main()
     {
-        const int screenWidth = 1280;
-        const int screenHeight = 720;
+        var settings = new WindowSettings();
+        var (initialWidth, initialHeight) = settings.CurrentResolution;
 
-        Raylib.InitWindow(screenWidth, screenHeight, "My Raylib Game");
-
+        Raylib.InitWindow(initialWidth, initialHeight, "3DDungeonCrawlerRayLib");
         Raylib.SetTargetFPS(60);
 
-        Vector2 playerPos = new Vector2(400, 300);
+        var input = new InputHandler();
+        var stateController = new GameStateController();
 
-        while (!Raylib.WindowShouldClose())
+        var mainMenu = new MainMenuScreen(stateController);
+        var settingsMenu = new SettingsMenuScreen(stateController, settings);
+        var gameplay = new GameplayScreen(stateController);
+        var pauseMenu = new PauseMenuScreen(stateController);
+
+        bool isRunning = true;
+
+        while (isRunning && !Raylib.WindowShouldClose())
         {
-            // Movement
-            if (Raylib.IsKeyDown(KeyboardKey.Right))
-                playerPos.X += 5;
+            float deltaTime = Raylib.GetFrameTime();
 
-            if (Raylib.IsKeyDown(KeyboardKey.Left))
-                playerPos.X -= 5;
+            switch (stateController.CurrentState)
+            {
+                case GameState.MainMenu:
+                    mainMenu.Update(input);
+                    break;
+                case GameState.Settings:
+                    settingsMenu.Update(input);
+                    break;
+                case GameState.Gameplay:
+                    gameplay.Update(input, deltaTime);
+                    break;
+                case GameState.PauseMenu:
+                    pauseMenu.Update(input);
+                    break;
+                case GameState.Exiting:
+                    isRunning = false;
+                    break;
+            }
 
-            if (Raylib.IsKeyDown(KeyboardKey.Up))
-                playerPos.Y -= 5;
-
-            if (Raylib.IsKeyDown(KeyboardKey.Down))
-                playerPos.Y += 5;
-
-            // Drawing
             Raylib.BeginDrawing();
+            Raylib.ClearBackground(new Color(8, 8, 12, 255));
 
-            Raylib.ClearBackground(Color.Black);
-
-            Raylib.DrawText("Raylib + C#", 20, 20, 30, Color.White);
-
-            Raylib.DrawCircleV(playerPos, 30, Color.Red);
+            switch (stateController.CurrentState)
+            {
+                case GameState.MainMenu:
+                    mainMenu.Draw();
+                    break;
+                case GameState.Settings:
+                    settingsMenu.Draw();
+                    break;
+                case GameState.Gameplay:
+                    gameplay.Draw();
+                    break;
+                case GameState.PauseMenu:
+                    gameplay.Draw();
+                    pauseMenu.Draw();
+                    break;
+            }
 
             Raylib.EndDrawing();
         }
