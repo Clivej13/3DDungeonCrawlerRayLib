@@ -6,6 +6,7 @@ public sealed class TextureManager : IDisposable
 {
     public Texture2D DungeonTexture { get; }
     public Texture2D PlayerAnimationsTexture { get; }
+    public Texture2D GoblinTexture { get; }
 
     public TextureManager()
     {
@@ -15,11 +16,15 @@ public sealed class TextureManager : IDisposable
 
         PlayerAnimationsTexture = Raylib.LoadTexture("Assets/Textures/player_animations.png");
         Raylib.SetTextureFilter(PlayerAnimationsTexture, TextureFilter.Point);
+
+        GoblinTexture = Raylib.LoadTexture("Assets/Textures/goblin.png");
+        Raylib.SetTextureFilter(GoblinTexture, TextureFilter.Point);
     }
 
     public void Dispose()
     {
         Raylib.UnloadTexture(DungeonTexture);
         Raylib.UnloadTexture(PlayerAnimationsTexture);
+        Raylib.UnloadTexture(GoblinTexture);
     }
 }

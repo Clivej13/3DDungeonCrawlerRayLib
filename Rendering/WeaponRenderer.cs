@@ -15,6 +15,9 @@ public sealed class WeaponRenderer
     private float _frameTimer;
     private bool _animationPlaying;
 
+    public bool IsSwinging => _animationPlaying;
+    public int CurrentFrame => _currentFrame;
+
     public WeaponRenderer(Texture2D spriteSheet)
     {
         _spriteSheet = spriteSheet;
