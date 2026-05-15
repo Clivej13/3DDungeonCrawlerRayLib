@@ -68,18 +68,10 @@ public sealed class RaycastRenderer
 
         Raylib.UpdateTexture(_frameTexture, _framebuffer);
 
-        float scale = MathF.Floor(MathF.Min(windowW / (float)InternalWidth, windowH / (float)InternalHeight));
-        if (scale < 1f) scale = 1f;
-
-        float targetW = InternalWidth * scale;
-        float targetH = InternalHeight * scale;
-        float offsetX = (windowW - targetW) * 0.5f;
-        float offsetY = (windowH - targetH) * 0.5f;
-
         Raylib.DrawTexturePro(
             _frameTexture,
             new Rectangle(0, 0, InternalWidth, InternalHeight),
-            new Rectangle(offsetX, offsetY, targetW, targetH),
+            new Rectangle(0, 0, windowW, windowH),
             Vector2.Zero,
             0f,
             Color.White);
@@ -287,9 +279,17 @@ public sealed class RaycastRenderer
 
         float px = offsetX + (player.Position.X / DungeonMap.TileSize) * cell;
         float py = offsetY + (player.Position.Y / DungeonMap.TileSize) * cell;
-        Raylib.DrawCircle((int)px, (int)py, 4, Color.Yellow);
 
-        Vector2 dir = new(MathF.Cos(player.Angle), MathF.Sin(player.Angle));
-        Raylib.DrawLine((int)px, (int)py, (int)(px + dir.X * 14), (int)(py + dir.Y * 14), Color.Orange);
+        Vector2 forward = new(MathF.Cos(player.Angle), MathF.Sin(player.Angle));
+        Vector2 right = new(-forward.Y, forward.X);
+        float length = 8f;
+        float baseOffset = 4f;
+        float halfWidth = 4f;
+
+        Vector2 tip = new(px, py) + forward * length;
+        Vector2 left = new(px, py) - forward * baseOffset - right * halfWidth;
+        Vector2 rightPoint = new(px, py) - forward * baseOffset + right * halfWidth;
+
+        Raylib.DrawTriangle(tip, left, rightPoint, new Color(64, 196, 255, 255));
     }
 }
