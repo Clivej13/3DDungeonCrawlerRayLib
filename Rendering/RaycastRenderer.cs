@@ -25,15 +25,29 @@ public sealed class RaycastRenderer
         int sh = Raylib.GetScreenHeight();
         int horizon = (sh / 2) + (int)player.PitchOffset;
 
-        DrawFloorAndCeiling(player, sw, sh, horizon);
+        DrawFloor(player, sw, sh, horizon);
+        DrawCeiling(player, sw, sh, horizon);
         DrawWalls(player, sw, sh, horizon);
         DrawCrosshair(sw, sh);
     }
 
-    private void DrawFloorAndCeiling(PlayerController player, int sw, int sh, int horizon)
+    private void DrawFloor(PlayerController player, int sw, int sh, int horizon)
     {
-        // Perspective-correct scanline floor casting.
-        // For each floor row, compute distance once then step world-space coordinates across X.
+        // Perspective-correct world-space floor casting.
+        // Each scanline intersects the floor plane (z = 0) and then advances in world-space per pixel.
+        // This keeps texture coordinates anchored to the dungeon, not to screen-space.
+        DrawHorizontalPlane(player, sw, sh, horizon, startY: Math.Clamp(horizon + 1, 0, sh), endYExclusive: sh, isFloor: true);
+    }
+
+    private void DrawCeiling(PlayerController player, int sw, int sh, int horizon)
+    {
+        // Independent perspective-correct world-space ceiling casting.
+        // Each scanline intersects the ceiling plane (z = DungeonMap.TileSize).
+        DrawHorizontalPlane(player, sw, sh, horizon, startY: 0, endYExclusive: Math.Clamp(horizon, 0, sh), isFloor: false);
+    }
+
+    private void DrawHorizontalPlane(PlayerController player, int sw, int sh, int horizon, int startY, int endYExclusive, bool isFloor)
+    {
         float halfFov = _fov * 0.5f;
         Vector2 forward = new(MathF.Cos(player.Angle), MathF.Sin(player.Angle));
         Vector2 right = new(-forward.Y, forward.X);
@@ -42,26 +56,31 @@ public sealed class RaycastRenderer
         Vector2 leftRay = forward - right * planeHalfWidth;
         Vector2 rightRay = forward + right * planeHalfWidth;
 
-        float cameraHeight = DungeonMap.TileSize * 0.5f;
-        int floorStart = Math.Clamp(horizon + 1, 0, sh);
-        int ceilingEnd = Math.Clamp(horizon, 0, sh - 1);
+        float cameraHeight = DungeonMap.TileSize * 0.5f; // Player eye at middle of a tile.
+        float planeHeightDelta = isFloor
+            ? cameraHeight                   // Eye to floor (z = 0)
+            : (DungeonMap.TileSize - cameraHeight); // Eye to ceiling (z = tile size)
 
-        for (int y = floorStart; y < sh; y++)
+        for (int y = startY; y < endYExclusive; y++)
         {
-            float rowOffset = y - horizon;
-            if (rowOffset <= 0.001f) continue;
+            float rowOffset = isFloor ? (y - horizon) : (horizon - y);
+            if (rowOffset <= 0.001f)
+            {
+                continue;
+            }
 
-            float rowDistance = (cameraHeight * sh) / (2f * rowOffset);
+            float rowDistance = (planeHeightDelta * sh) / (2f * rowOffset);
             float stepX = rowDistance * (rightRay.X - leftRay.X) / sw;
             float stepY = rowDistance * (rightRay.Y - leftRay.Y) / sw;
 
             float worldX = player.Position.X + rowDistance * leftRay.X;
             float worldY = player.Position.Y + rowDistance * leftRay.Y;
 
-            byte floorShade = (byte)(Math.Clamp(1f - rowDistance / _maxRayDistance, 0.18f, 0.68f) * 255);
-            byte ceilShade = (byte)(Math.Clamp(1f - rowDistance / (_maxRayDistance * 0.85f), 0.10f, 0.36f) * 255);
-
-            int ceilY = horizon - (y - horizon);
+            float shadeMin = isFloor ? 0.18f : 0.10f;
+            float shadeMax = isFloor ? 0.68f : 0.36f;
+            float falloff = isFloor ? _maxRayDistance : _maxRayDistance * 0.85f;
+            byte shade = (byte)(Math.Clamp(1f - rowDistance / falloff, shadeMin, shadeMax) * 255);
+            var tint = new Color(shade, shade, shade, (byte)255);
 
             for (int x = 0; x < sw; x++)
             {
@@ -69,14 +88,8 @@ public sealed class RaycastRenderer
                 int ty = PositiveMod((int)worldY, DungeonMap.TileSize) * _wallTexture.Height / DungeonMap.TileSize;
 
                 var src = new Rectangle(tx, ty, 1, 1);
-                var floorDst = new Rectangle(x, y, 1, 1);
-                Raylib.DrawTexturePro(_wallTexture, src, floorDst, Vector2.Zero, 0f, new Color(floorShade, floorShade, floorShade, (byte)255));
-
-                if (ceilY >= 0 && ceilY <= ceilingEnd)
-                {
-                    var ceilDst = new Rectangle(x, ceilY, 1, 1);
-                    Raylib.DrawTexturePro(_wallTexture, src, ceilDst, Vector2.Zero, 0f, new Color(ceilShade, ceilShade, ceilShade, (byte)255));
-                }
+                var dst = new Rectangle(x, y, 1, 1);
+                Raylib.DrawTexturePro(_wallTexture, src, dst, Vector2.Zero, 0f, tint);
 
                 worldX += stepX;
                 worldY += stepY;
