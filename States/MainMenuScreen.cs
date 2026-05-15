@@ -12,33 +12,26 @@ public sealed class MainMenuScreen : MenuBase
     public MainMenuScreen(GameStateController stateController)
     {
         _stateController = stateController;
-        BuildOptions();
-    }
-
-    private void BuildOptions()
-    {
         SetOptions(new[]
         {
             new MenuOption("Start Game", () => _stateController.ChangeState(GameState.Gameplay)),
-            new MenuOption("Settings", () => _stateController.OpenSettings(GameState.MainMenu)),
+            new MenuOption("Settings", () => _stateController.OpenMenu(GameState.SettingsMenu)),
+            new MenuOption("Controls", () => _stateController.OpenMenu(GameState.ControlsMenu)),
             new MenuOption("Exit", () => _stateController.ChangeState(GameState.Exiting))
         });
+    }
+
+    public override void Update(InputHandler input)
+    {
+        // Intentionally do not exit on ESC from main menu; only explicit Exit option should quit.
+        base.Update(input);
     }
 
     public void Draw()
     {
         DrawMenuTitle("3D DUNGEON CRAWLER");
-        DrawOptions(220);
-        Raylib.DrawText("ENTER: Select   ESC: Quit", 30, Raylib.GetScreenHeight() - 40, 20, Color.DarkGray);
-    }
-
-    public override void Update(InputHandler input)
-    {
-        base.Update(input);
-
-        if (input.BackPressed())
-        {
-            _stateController.ChangeState(GameState.Exiting);
-        }
+        DrawOptions(210);
+        Raylib.DrawText("UP/DOWN or W/S: Navigate", 30, Raylib.GetScreenHeight() - 70, 20, Color.DarkGray);
+        Raylib.DrawText("ENTER: Select", 30, Raylib.GetScreenHeight() - 40, 20, Color.DarkGray);
     }
 }

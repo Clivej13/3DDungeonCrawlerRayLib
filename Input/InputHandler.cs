@@ -3,7 +3,7 @@ using Raylib_cs;
 namespace DungeonCrawler.Input;
 
 /// <summary>
-/// Centralized input queries so state/menu classes stay focused on behavior.
+/// Centralized input queries for state-aware behavior.
 /// </summary>
 public sealed class InputHandler
 {
@@ -13,4 +13,6 @@ public sealed class InputHandler
     public bool MoveRightPressed() => Raylib.IsKeyPressed(KeyboardKey.D) || Raylib.IsKeyPressed(KeyboardKey.Right);
     public bool ConfirmPressed() => Raylib.IsKeyPressed(KeyboardKey.Enter);
     public bool BackPressed() => Raylib.IsKeyPressed(KeyboardKey.Escape);
+    public bool PausePressed() => Raylib.IsKeyPressed(KeyboardKey.Escape);
+    public float MouseWheelDelta() => Raylib.GetMouseWheelMove();
 }
