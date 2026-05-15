@@ -1,5 +1,17 @@
 {
+  "_comment": [
+    "Map rows use: 1 = wall, 0 = floor",
+    "Enemy and player coordinates are WORLD coordinates, not grid coordinates",
+    "Tile size is 64",
+    "World position to grid conversion:",
+    "gridX = floor(x / 64)",
+    "gridY = floor(y / 64)",
+    "Enemies MUST spawn on floor tiles only",
+    "Do not place enemies inside wall cells"
+  ],
+
   "tileSize": 64,
+
   "rows": [
     "11111111",
     "10000001",
@@ -7,15 +19,17 @@
     "10000101",
     "11111111"
   ],
+
   "playerSpawn": {
     "x": 96,
     "y": 96,
     "angle": 0
   },
+
   "enemies": [
     {
       "type": "goblin",
-      "x": 224,
+      "x": 288,
       "y": 160
     }
   ]
