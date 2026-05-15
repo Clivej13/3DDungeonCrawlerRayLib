@@ -84,8 +84,12 @@ public sealed class RaycastRenderer
 
             for (int x = 0; x < sw; x++)
             {
-                int tx = PositiveMod((int)worldX, DungeonMap.TileSize) * _wallTexture.Width / DungeonMap.TileSize;
-                int ty = PositiveMod((int)worldY, DungeonMap.TileSize) * _wallTexture.Height / DungeonMap.TileSize;
+                // Grid-aligned tile sampling:
+                // - Convert world position into dungeon-cell local coordinates [0, TileSize).
+                // - Map that local position to one full texture tile.
+                // This guarantees one floor/ceiling texture tile per dungeon map cell.
+                int tx = WorldToTileTexel(worldX, DungeonMap.TileSize, _wallTexture.Width);
+                int ty = WorldToTileTexel(worldY, DungeonMap.TileSize, _wallTexture.Height);
 
                 var src = new Rectangle(tx, ty, 1, 1);
                 var dst = new Rectangle(x, y, 1, 1);
@@ -201,6 +205,14 @@ public sealed class RaycastRenderer
     {
         int m = value % modulus;
         return m < 0 ? m + modulus : m;
+    }
+
+    private static int WorldToTileTexel(float worldCoord, int tileSize, int textureSize)
+    {
+        // Use floor-based cell-local sampling so each dungeon cell starts at UV (0, 0)
+        // and ends at UV (textureSize, textureSize), aligned to DungeonMap.TileSize.
+        int cellLocal = PositiveMod((int)MathF.Floor(worldCoord), tileSize);
+        return (cellLocal * textureSize) / tileSize;
     }
 
     private static void DrawCrosshair(int sw, int sh)
