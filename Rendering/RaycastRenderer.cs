@@ -34,10 +34,25 @@ public sealed class RaycastRenderer
         Raylib.SetTextureFilter(_frameTexture, TextureFilter.Point);
 
         Image wallImage = Raylib.LoadImageFromTexture(_wallTexture);
-        _wallPixels = Raylib.LoadImageColors(wallImage);
+
         _wallWidth = wallImage.Width;
         _wallHeight = wallImage.Height;
-        Raylib.UnloadImage(wallImage);
+
+        unsafe
+        {
+            Color* pixels = Raylib.LoadImageColors(wallImage);
+
+            _wallPixels = new Color[_wallWidth * _wallHeight];
+
+            for (int i = 0; i < _wallPixels.Length; i++)
+            {
+                _wallPixels[i] = pixels[i];
+            }
+
+            Raylib.UnloadImageColors(pixels);
+        }
+
+    Raylib.UnloadImage(wallImage);
     }
 
     public void Draw(PlayerController player)
@@ -206,7 +221,11 @@ public sealed class RaycastRenderer
     }
 
     private static Color Modulate(Color c, byte shade)
-        => new((byte)(c.R * shade / 255), (byte)(c.G * shade / 255), (byte)(c.B * shade / 255), 255);
+        => new(
+    (byte)(c.R * shade / 255),
+    (byte)(c.G * shade / 255),
+    (byte)(c.B * shade / 255),
+    (byte)255);
 
     private static int PositiveMod(int value, int modulus)
     {
