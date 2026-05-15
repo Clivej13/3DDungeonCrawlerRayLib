@@ -68,7 +68,7 @@ public sealed class RaycastRenderer
 
             var src = new Rectangle(hit.TextureX, 0, 1, _wallTexture.Height);
             var dst = new Rectangle(x, drawTop, 1, sliceHeight);
-            Raylib.DrawTexturePro(_wallTexture, src, dst, Vector2.Zero, 0f, new Color(shade, shade, shade, 255));
+            Raylib.DrawTexturePro(_wallTexture, src, dst, Vector2.Zero, 0f, new Color((byte)32, (byte)32, (byte)42, (byte)255));
         }
     }
 
