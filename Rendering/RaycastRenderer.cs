@@ -10,95 +10,127 @@ public sealed class RaycastRenderer
     private readonly DungeonMap _map;
     private readonly Texture2D _wallTexture;
 
-    private readonly float _fov = MathF.PI / 3.2f; // ~56 deg; retro tight FOV.
+    private readonly float _fov = MathF.PI / 3.2f;
     private readonly float _maxRayDistance = 1200f;
+
+    // Low internal software resolution (retro + performance).
+    private const int InternalWidth = 320;
+    private const int InternalHeight = 200;
+
+    // CPU framebuffer uploaded once per frame -> minimizes draw calls.
+    private readonly Color[] _framebuffer;
+    private readonly Texture2D _frameTexture;
+    private readonly Color[] _wallPixels;
+    private readonly int _wallWidth;
+    private readonly int _wallHeight;
 
     public RaycastRenderer(DungeonMap map, Texture2D wallTexture)
     {
         _map = map;
         _wallTexture = wallTexture;
+
+        _framebuffer = new Color[InternalWidth * InternalHeight];
+        _frameTexture = Raylib.LoadTextureFromImage(Raylib.GenImageColor(InternalWidth, InternalHeight, Color.Black));
+        Raylib.SetTextureFilter(_frameTexture, TextureFilter.Point);
+
+        Image wallImage = Raylib.LoadImageFromTexture(_wallTexture);
+
+        _wallWidth = wallImage.Width;
+        _wallHeight = wallImage.Height;
+
+        unsafe
+        {
+            Color* pixels = Raylib.LoadImageColors(wallImage);
+
+            _wallPixels = new Color[_wallWidth * _wallHeight];
+
+            for (int i = 0; i < _wallPixels.Length; i++)
+            {
+                _wallPixels[i] = pixels[i];
+            }
+
+            Raylib.UnloadImageColors(pixels);
+        }
+
+    Raylib.UnloadImage(wallImage);
     }
 
     public void Draw(PlayerController player)
     {
-        int sw = Raylib.GetScreenWidth();
-        int sh = Raylib.GetScreenHeight();
-        int horizon = (sh / 2) + (int)player.PitchOffset;
+        int windowW = Raylib.GetScreenWidth();
+        int windowH = Raylib.GetScreenHeight();
+        int horizon = (InternalHeight / 2) + (int)(player.PitchOffset * (InternalHeight / (float)windowH));
 
-        DrawFloor(player, sw, sh, horizon);
-        DrawCeiling(player, sw, sh, horizon);
-        DrawWalls(player, sw, sh, horizon);
-        DrawCrosshair(sw, sh);
+        DrawFloor(player, horizon);
+        DrawCeiling(player, horizon);
+        DrawWalls(player, horizon);
+        DrawCrosshair();
+
+        Raylib.UpdateTexture(_frameTexture, _framebuffer);
+
+        float scale = MathF.Floor(MathF.Min(windowW / (float)InternalWidth, windowH / (float)InternalHeight));
+        if (scale < 1f) scale = 1f;
+
+        float targetW = InternalWidth * scale;
+        float targetH = InternalHeight * scale;
+        float offsetX = (windowW - targetW) * 0.5f;
+        float offsetY = (windowH - targetH) * 0.5f;
+
+        Raylib.DrawTexturePro(
+            _frameTexture,
+            new Rectangle(0, 0, InternalWidth, InternalHeight),
+            new Rectangle(offsetX, offsetY, targetW, targetH),
+            Vector2.Zero,
+            0f,
+            Color.White);
     }
 
-    private void DrawFloor(PlayerController player, int sw, int sh, int horizon)
-    {
-        // Perspective-correct world-space floor casting.
-        // Each scanline intersects the floor plane (z = 0) and then advances in world-space per pixel.
-        // This keeps texture coordinates anchored to the dungeon, not to screen-space.
-        DrawHorizontalPlane(player, sw, sh, horizon, startY: Math.Clamp(horizon + 1, 0, sh), endYExclusive: sh, isFloor: true);
-    }
+    private void DrawFloor(PlayerController player, int horizon)
+        => DrawHorizontalPlane(player, horizon, Math.Clamp(horizon + 1, 0, InternalHeight), InternalHeight, true);
 
-    private void DrawCeiling(PlayerController player, int sw, int sh, int horizon)
-    {
-        // Independent perspective-correct world-space ceiling casting.
-        // Each scanline intersects the ceiling plane (z = DungeonMap.TileSize).
-        DrawHorizontalPlane(player, sw, sh, horizon, startY: 0, endYExclusive: Math.Clamp(horizon, 0, sh), isFloor: false);
-    }
+    private void DrawCeiling(PlayerController player, int horizon)
+        => DrawHorizontalPlane(player, horizon, 0, Math.Clamp(horizon, 0, InternalHeight), false);
 
-    private void DrawHorizontalPlane(PlayerController player, int sw, int sh, int horizon, int startY, int endYExclusive, bool isFloor)
+    private void DrawHorizontalPlane(PlayerController player, int horizon, int startY, int endYExclusive, bool isFloor)
     {
         float halfFov = _fov * 0.5f;
+        float tanHalfFov = MathF.Tan(halfFov);
+        float projPlaneDist = (InternalWidth * 0.5f) / tanHalfFov;
+
         Vector2 forward = new(MathF.Cos(player.Angle), MathF.Sin(player.Angle));
         Vector2 right = new(-forward.Y, forward.X);
-        float planeHalfWidth = MathF.Tan(halfFov);
+        Vector2 leftRay = forward - right * tanHalfFov;
+        Vector2 rightRay = forward + right * tanHalfFov;
 
-        Vector2 leftRay = forward - right * planeHalfWidth;
-        Vector2 rightRay = forward + right * planeHalfWidth;
+        float cameraHeight = DungeonMap.TileSize * 0.5f;
+        float planeHeightDelta = isFloor ? cameraHeight : (DungeonMap.TileSize - cameraHeight);
 
-        float cameraHeight = DungeonMap.TileSize * 0.5f; // Player eye at middle of a tile.
-        float planeHeightDelta = isFloor
-            ? cameraHeight                   // Eye to floor (z = 0)
-            : (DungeonMap.TileSize - cameraHeight); // Eye to ceiling (z = tile size)
-        float projPlaneDist = (sw * 0.5f) / MathF.Tan(halfFov);
+        float shadeMin = isFloor ? 0.18f : 0.10f;
+        float shadeMax = isFloor ? 0.68f : 0.36f;
+        float falloff = isFloor ? _maxRayDistance : _maxRayDistance * 0.85f;
 
         for (int y = startY; y < endYExclusive; y++)
         {
             float rowOffset = isFloor ? (y - horizon) : (horizon - y);
-            if (rowOffset <= 0.001f)
-            {
-                continue;
-            }
+            if (rowOffset <= 0.001f) continue;
 
-            // Match wall projection scale:
-            // distance = planeHeightDelta * projectionPlaneDistance / verticalScreenOffset
-            // Using the same projection plane distance as walls keeps floor/ceiling tile size
-            // aligned to DungeonMap.TileSize cell boundaries in perspective.
             float rowDistance = (planeHeightDelta * projPlaneDist) / rowOffset;
-            float stepX = rowDistance * (rightRay.X - leftRay.X) / sw;
-            float stepY = rowDistance * (rightRay.Y - leftRay.Y) / sw;
+            float stepX = rowDistance * (rightRay.X - leftRay.X) / InternalWidth;
+            float stepY = rowDistance * (rightRay.Y - leftRay.Y) / InternalWidth;
 
             float worldX = player.Position.X + rowDistance * leftRay.X;
             float worldY = player.Position.Y + rowDistance * leftRay.Y;
 
-            float shadeMin = isFloor ? 0.18f : 0.10f;
-            float shadeMax = isFloor ? 0.68f : 0.36f;
-            float falloff = isFloor ? _maxRayDistance : _maxRayDistance * 0.85f;
             byte shade = (byte)(Math.Clamp(1f - rowDistance / falloff, shadeMin, shadeMax) * 255);
-            var tint = new Color(shade, shade, shade, (byte)255);
+            int rowIndex = y * InternalWidth;
 
-            for (int x = 0; x < sw; x++)
+            for (int x = 0; x < InternalWidth; x++)
             {
-                // Grid-aligned tile sampling:
-                // - Convert world position into dungeon-cell local coordinates [0, TileSize).
-                // - Map that local position to one full texture tile.
-                // This guarantees one floor/ceiling texture tile per dungeon map cell.
-                int tx = WorldToTileTexel(worldX, DungeonMap.TileSize, _wallTexture.Width);
-                int ty = WorldToTileTexel(worldY, DungeonMap.TileSize, _wallTexture.Height);
+                int tx = WorldToTileTexel(worldX, DungeonMap.TileSize, _wallWidth);
+                int ty = WorldToTileTexel(worldY, DungeonMap.TileSize, _wallHeight);
 
-                var src = new Rectangle(tx, ty, 1, 1);
-                var dst = new Rectangle(x, y, 1, 1);
-                Raylib.DrawTexturePro(_wallTexture, src, dst, Vector2.Zero, 0f, tint);
+                Color c = _wallPixels[(ty * _wallWidth) + tx];
+                _framebuffer[rowIndex + x] = Modulate(c, shade);
 
                 worldX += stepX;
                 worldY += stepY;
@@ -106,75 +138,61 @@ public sealed class RaycastRenderer
         }
     }
 
-    private void DrawWalls(PlayerController player, int sw, int sh, int horizon)
+    private void DrawWalls(PlayerController player, int horizon)
     {
-        float projPlaneDist = (sw * 0.5f) / MathF.Tan(_fov * 0.5f);
+        float halfFov = _fov * 0.5f;
+        float projPlaneDist = (InternalWidth * 0.5f) / MathF.Tan(halfFov);
 
-        for (int x = 0; x < sw; x++)
+        for (int x = 0; x < InternalWidth; x++)
         {
-            float cameraX = (2f * x / sw) - 1f;
-            float rayAngle = player.Angle + cameraX * (_fov * 0.5f);
+            float cameraX = (2f * x / InternalWidth) - 1f;
+            float rayAngle = player.Angle + cameraX * halfFov;
             var hit = CastRay(player.Position, rayAngle);
 
-            float correctedDist = hit.Distance * MathF.Cos(rayAngle - player.Angle);
-            correctedDist = MathF.Max(correctedDist, 0.0001f);
-
-            float wallHeight = (DungeonMap.TileSize / correctedDist) * projPlaneDist;
-            int sliceHeight = (int)wallHeight;
+            float correctedDist = MathF.Max(hit.Distance * MathF.Cos(rayAngle - player.Angle), 0.0001f);
+            int sliceHeight = (int)((DungeonMap.TileSize / correctedDist) * projPlaneDist);
             int drawTop = horizon - (sliceHeight / 2);
+            int drawBottom = drawTop + sliceHeight;
 
-            float shadeFactor = Math.Clamp(1f - (correctedDist / _maxRayDistance), 0.2f, 1f);
-            byte shade = (byte)(255 * shadeFactor);
+            byte shade = (byte)(255 * Math.Clamp(1f - (correctedDist / _maxRayDistance), 0.2f, 1f));
             if (hit.HitVertical) shade = (byte)(shade * 0.88f);
 
-            var src = new Rectangle(hit.TextureX, 0, 1, _wallTexture.Height);
-            var dst = new Rectangle(x, drawTop, 1, sliceHeight);
-            Raylib.DrawTexturePro(_wallTexture, src, dst, Vector2.Zero, 0f, new Color(shade, shade, shade, (byte)255));
+            int texX = Math.Clamp((int)hit.TextureX, 0, _wallWidth - 1);
+
+            for (int y = Math.Max(0, drawTop); y < Math.Min(InternalHeight, drawBottom); y++)
+            {
+                float t = (y - drawTop) / (float)Math.Max(sliceHeight, 1);
+                int texY = Math.Clamp((int)(t * _wallHeight), 0, _wallHeight - 1);
+                Color c = _wallPixels[(texY * _wallWidth) + texX];
+                _framebuffer[y * InternalWidth + x] = Modulate(c, shade);
+            }
         }
     }
 
     private (float Distance, float TextureX, bool HitVertical) CastRay(Vector2 origin, float rayAngle)
     {
         Vector2 rayDir = new(MathF.Cos(rayAngle), MathF.Sin(rayAngle));
-
         int mapX = (int)(origin.X / DungeonMap.TileSize);
         int mapY = (int)(origin.Y / DungeonMap.TileSize);
 
         float deltaDistX = rayDir.X == 0f ? float.MaxValue : MathF.Abs(DungeonMap.TileSize / rayDir.X);
         float deltaDistY = rayDir.Y == 0f ? float.MaxValue : MathF.Abs(DungeonMap.TileSize / rayDir.Y);
 
-        int stepX;
-        int stepY;
-        float sideDistX;
-        float sideDistY;
+        int stepX = rayDir.X < 0 ? -1 : 1;
+        int stepY = rayDir.Y < 0 ? -1 : 1;
 
-        if (rayDir.X < 0)
-        {
-            stepX = -1;
-            sideDistX = (origin.X - mapX * DungeonMap.TileSize) / -rayDir.X;
-        }
-        else
-        {
-            stepX = 1;
-            sideDistX = ((mapX + 1) * DungeonMap.TileSize - origin.X) / (rayDir.X == 0f ? 0.0001f : rayDir.X);
-        }
+        float sideDistX = rayDir.X < 0
+            ? (origin.X - mapX * DungeonMap.TileSize) / -rayDir.X
+            : ((mapX + 1) * DungeonMap.TileSize - origin.X) / (rayDir.X == 0f ? 0.0001f : rayDir.X);
 
-        if (rayDir.Y < 0)
-        {
-            stepY = -1;
-            sideDistY = (origin.Y - mapY * DungeonMap.TileSize) / -rayDir.Y;
-        }
-        else
-        {
-            stepY = 1;
-            sideDistY = ((mapY + 1) * DungeonMap.TileSize - origin.Y) / (rayDir.Y == 0f ? 0.0001f : rayDir.Y);
-        }
+        float sideDistY = rayDir.Y < 0
+            ? (origin.Y - mapY * DungeonMap.TileSize) / -rayDir.Y
+            : ((mapY + 1) * DungeonMap.TileSize - origin.Y) / (rayDir.Y == 0f ? 0.0001f : rayDir.Y);
 
         bool hitVertical = false;
-        bool hit = false;
         float distance = 0f;
 
-        while (!hit && distance < _maxRayDistance)
+        while (distance < _maxRayDistance)
         {
             if (sideDistX < sideDistY)
             {
@@ -191,20 +209,23 @@ public sealed class RaycastRenderer
                 hitVertical = false;
             }
 
-            if (_map.IsWallAtGrid(mapX, mapY))
-            {
-                hit = true;
-            }
+            if (_map.IsWallAtGrid(mapX, mapY)) break;
         }
 
         Vector2 hitPoint = origin + rayDir * distance;
         float textureCoord = hitVertical ? hitPoint.Y : hitPoint.X;
         float textureX = textureCoord % DungeonMap.TileSize;
         if (textureX < 0f) textureX += DungeonMap.TileSize;
-        textureX = (textureX / DungeonMap.TileSize) * _wallTexture.Width;
 
-        return (distance, textureX, hitVertical);
+        return (distance, (textureX / DungeonMap.TileSize) * _wallWidth, hitVertical);
     }
+
+    private static Color Modulate(Color c, byte shade)
+        => new(
+    (byte)(c.R * shade / 255),
+    (byte)(c.G * shade / 255),
+    (byte)(c.B * shade / 255),
+    (byte)255);
 
     private static int PositiveMod(int value, int modulus)
     {
@@ -214,18 +235,38 @@ public sealed class RaycastRenderer
 
     private static int WorldToTileTexel(float worldCoord, int tileSize, int textureSize)
     {
-        // Use floor-based cell-local sampling so each dungeon cell starts at UV (0, 0)
-        // and ends at UV (textureSize, textureSize), aligned to DungeonMap.TileSize.
         int cellLocal = PositiveMod((int)MathF.Floor(worldCoord), tileSize);
         return (cellLocal * textureSize) / tileSize;
     }
 
-    private static void DrawCrosshair(int sw, int sh)
+    private void DrawCrosshair()
     {
-        int cx = sw / 2;
-        int cy = sh / 2;
-        Raylib.DrawLine(cx - 8, cy, cx + 8, cy, new Color(220, 220, 220, 180));
-        Raylib.DrawLine(cx, cy - 8, cx, cy + 8, new Color(220, 220, 220, 180));
+        int cx = InternalWidth / 2;
+        int cy = InternalHeight / 2;
+        DrawLineCPU(cx - 8, cy, cx + 8, cy, new Color(220, 220, 220, 180));
+        DrawLineCPU(cx, cy - 8, cx, cy + 8, new Color(220, 220, 220, 180));
+    }
+
+    private void DrawLineCPU(int x0, int y0, int x1, int y1, Color color)
+    {
+        int dx = Math.Abs(x1 - x0);
+        int sx = x0 < x1 ? 1 : -1;
+        int dy = -Math.Abs(y1 - y0);
+        int sy = y0 < y1 ? 1 : -1;
+        int err = dx + dy;
+
+        while (true)
+        {
+            if ((uint)x0 < InternalWidth && (uint)y0 < InternalHeight)
+            {
+                _framebuffer[y0 * InternalWidth + x0] = color;
+            }
+
+            if (x0 == x1 && y0 == y1) break;
+            int e2 = 2 * err;
+            if (e2 >= dy) { err += dy; x0 += sx; }
+            if (e2 <= dx) { err += dx; y0 += sy; }
+        }
     }
 
     public void DrawMinimap(PlayerController player)
