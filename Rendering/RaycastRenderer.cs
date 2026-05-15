@@ -286,9 +286,11 @@ public sealed class RaycastRenderer
         float baseOffset = 4f;
         float halfWidth = 4f;
 
-        Vector2 tip = new(px, py) + forward * length;
-        Vector2 left = new(px, py) - forward * baseOffset - right * halfWidth;
-        Vector2 rightPoint = new(px, py) - forward * baseOffset + right * halfWidth;
+        Vector2 center = new Vector2(px, py);
+
+        Vector2 tip = center + (forward * length);
+        Vector2 left = center - (forward * baseOffset) - (right * halfWidth);
+        Vector2 rightPoint = center - (forward * baseOffset) + (right * halfWidth);
 
         Raylib.DrawTriangle(tip, left, rightPoint, new Color(64, 196, 255, 255));
     }
