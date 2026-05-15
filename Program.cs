@@ -10,6 +10,8 @@ class Program
         var settings = new WindowSettings();
         var (w, h) = settings.CurrentResolution;
         Raylib.InitWindow(w, h, "3DDungeonCrawlerRayLib");
+        // Disable Raylib default ESC-to-close behavior
+        Raylib.SetExitKey(KeyboardKey.Null);
         Raylib.SetTargetFPS(60);
 
         var input = new InputHandler();
