@@ -1,43 +1,75 @@
-﻿using Raylib_cs;
-using System.Numerics;
+﻿using DungeonCrawler.Core;
+using DungeonCrawler.Input;
+using DungeonCrawler.States;
+using Raylib_cs;
 
 class Program
 {
     static void Main()
     {
-        const int screenWidth = 1280;
-        const int screenHeight = 720;
-
-        Raylib.InitWindow(screenWidth, screenHeight, "My Raylib Game");
-
+        var settings = new WindowSettings();
+        var (w, h) = settings.CurrentResolution;
+        Raylib.InitWindow(w, h, "3DDungeonCrawlerRayLib");
+        // Disable Raylib default ESC-to-close behavior
+        Raylib.SetExitKey(KeyboardKey.Null);
         Raylib.SetTargetFPS(60);
 
-        Vector2 playerPos = new Vector2(400, 300);
+        var input = new InputHandler();
+        var stateController = new GameStateController();
 
-        while (!Raylib.WindowShouldClose())
+        var mainMenu = new MainMenuScreen(stateController);
+        var settingsMenu = new SettingsMenuScreen(stateController, settings);
+        var controlsMenu = new ControlsMenuScreen(stateController);
+        var gameplay = new GameplayScreen(stateController);
+        var pauseMenu = new PauseMenuScreen(stateController);
+
+        var updates = new Dictionary<GameState, Action<float>>
         {
-            // Movement
-            if (Raylib.IsKeyDown(KeyboardKey.Right))
-                playerPos.X += 5;
+            [GameState.MainMenu] = _ => mainMenu.Update(input),
+            [GameState.SettingsMenu] = _ => settingsMenu.Update(input),
+            [GameState.ControlsMenu] = _ => controlsMenu.Update(input),
+            [GameState.Gameplay] = dt => gameplay.Update(input, dt),
+            [GameState.PauseMenu] = _ => pauseMenu.Update(input)
+        };
 
-            if (Raylib.IsKeyDown(KeyboardKey.Left))
-                playerPos.X -= 5;
+        var draws = new Dictionary<GameState, Action>
+        {
+            [GameState.MainMenu] = mainMenu.Draw,
+            [GameState.SettingsMenu] = settingsMenu.Draw,
+            [GameState.ControlsMenu] = controlsMenu.Draw,
+            [GameState.Gameplay] = gameplay.Draw,
+            [GameState.PauseMenu] = () => { gameplay.Draw(); pauseMenu.Draw(); }
+        };
 
-            if (Raylib.IsKeyDown(KeyboardKey.Up))
-                playerPos.Y -= 5;
+        bool running = true;
+        while (running)
+        {
+            // WindowShouldClose is for OS-level close requests (X button / platform close event).
+            // It should terminate app immediately and must never be reused as pause/menu input.
+            if (Raylib.WindowShouldClose())
+            {
+                running = false;
+                continue;
+            }
 
-            if (Raylib.IsKeyDown(KeyboardKey.Down))
-                playerPos.Y += 5;
+            float dt = Raylib.GetFrameTime();
 
-            // Drawing
+            if (stateController.CurrentState == GameState.Exiting)
+            {
+                running = false;
+            }
+            else if (updates.TryGetValue(stateController.CurrentState, out var update))
+            {
+                // Exactly one state update per frame ensures Escape is processed once.
+                update(dt);
+            }
+
             Raylib.BeginDrawing();
-
-            Raylib.ClearBackground(Color.Black);
-
-            Raylib.DrawText("Raylib + C#", 20, 20, 30, Color.White);
-
-            Raylib.DrawCircleV(playerPos, 30, Color.Red);
-
+            Raylib.ClearBackground(new Color(8, 8, 12, 255));
+            if (draws.TryGetValue(stateController.CurrentState, out var draw))
+            {
+                draw();
+            }
             Raylib.EndDrawing();
         }
 
