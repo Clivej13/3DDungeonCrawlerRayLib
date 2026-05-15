@@ -8,8 +8,8 @@ public sealed class PlayerController
 {
     private readonly DungeonMap _map;
 
-    public Vector2 Position { get; private set; } = new(96f, 96f);
-    public float Angle { get; private set; } = 0f;
+    public Vector2 Position { get; private set; }
+    public float Angle { get; private set; }
     public float PitchOffset { get; private set; } = 0f;
 
     public float MoveSpeed { get; set; } = 170f;
@@ -20,6 +20,8 @@ public sealed class PlayerController
     public PlayerController(DungeonMap map)
     {
         _map = map;
+        Position = map.PlayerSpawn;
+        Angle = map.PlayerSpawnAngle;
     }
 
     public void Update(float deltaTime)

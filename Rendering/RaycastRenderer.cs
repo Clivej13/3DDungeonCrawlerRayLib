@@ -1,3 +1,4 @@
+using DungeonCrawler.Entities;
 using DungeonCrawler.Player;
 using DungeonCrawler.World;
 using Raylib_cs;
@@ -9,15 +10,15 @@ public sealed class RaycastRenderer
 {
     private readonly DungeonMap _map;
     private readonly Texture2D _wallTexture;
+    private readonly float[] _depthBuffer;
+    private readonly Dictionary<uint, (Color[] Pixels, int Width, int Height)> _spriteCache = [];
 
     private readonly float _fov = MathF.PI / 3.2f;
     private readonly float _maxRayDistance = 1200f;
 
-    // Low internal software resolution (retro + performance).
     private const int InternalWidth = 320;
     private const int InternalHeight = 200;
 
-    // CPU framebuffer uploaded once per frame -> minimizes draw calls.
     private readonly Color[] _framebuffer;
     private readonly Texture2D _frameTexture;
     private readonly Color[] _wallPixels;
@@ -30,18 +31,17 @@ public sealed class RaycastRenderer
         _wallTexture = wallTexture;
 
         _framebuffer = new Color[InternalWidth * InternalHeight];
+        _depthBuffer = new float[InternalWidth];
         _frameTexture = Raylib.LoadTextureFromImage(Raylib.GenImageColor(InternalWidth, InternalHeight, Color.Black));
         Raylib.SetTextureFilter(_frameTexture, TextureFilter.Point);
 
         Image wallImage = Raylib.LoadImageFromTexture(_wallTexture);
-
         _wallWidth = wallImage.Width;
         _wallHeight = wallImage.Height;
 
         unsafe
         {
             Color* pixels = Raylib.LoadImageColors(wallImage);
-
             _wallPixels = new Color[_wallWidth * _wallHeight];
 
             for (int i = 0; i < _wallPixels.Length; i++)
@@ -52,7 +52,7 @@ public sealed class RaycastRenderer
             Raylib.UnloadImageColors(pixels);
         }
 
-    Raylib.UnloadImage(wallImage);
+        Raylib.UnloadImage(wallImage);
     }
 
     public void Draw(PlayerController player)
@@ -64,6 +64,7 @@ public sealed class RaycastRenderer
         DrawFloor(player, horizon);
         DrawCeiling(player, horizon);
         DrawWalls(player, horizon);
+        DrawEnemies(player, horizon);
         DrawCrosshair();
 
         Raylib.UpdateTexture(_frameTexture, _framebuffer);
@@ -142,6 +143,8 @@ public sealed class RaycastRenderer
             var hit = CastRay(player.Position, rayAngle);
 
             float correctedDist = MathF.Max(hit.Distance * MathF.Cos(rayAngle - player.Angle), 0.0001f);
+            _depthBuffer[x] = correctedDist;
+
             int sliceHeight = (int)((DungeonMap.TileSize / correctedDist) * projPlaneDist);
             int drawTop = horizon - (sliceHeight / 2);
             int drawBottom = drawTop + sliceHeight;
@@ -159,6 +162,96 @@ public sealed class RaycastRenderer
                 _framebuffer[y * InternalWidth + x] = Modulate(c, shade);
             }
         }
+    }
+
+    private void DrawEnemies(PlayerController player, int horizon)
+    {
+        float halfFov = _fov * 0.5f;
+        float invDet; // camera inverse determinant for world->camera transform
+
+        Vector2 forward = new(MathF.Cos(player.Angle), MathF.Sin(player.Angle));
+        Vector2 right = new(-forward.Y, forward.X);
+
+        // camera plane magnitude equals tan(halfFov)
+        Vector2 plane = right * MathF.Tan(halfFov);
+        invDet = 1f / ((plane.X * forward.Y) - (forward.X * plane.Y));
+
+        float projPlaneDist = (InternalWidth * 0.5f) / MathF.Tan(halfFov);
+
+        foreach (Enemy enemy in _map.Enemies.Where(e => e.IsAlive).OrderByDescending(e => e.DistanceToPlayer))
+        {
+            Vector2 rel = enemy.Position - player.Position;
+
+            float transformX = invDet * ((forward.Y * rel.X) - (forward.X * rel.Y));
+            float transformY = invDet * ((-plane.Y * rel.X) + (plane.X * rel.Y)); // perpendicular depth
+
+            if (transformY <= 0.001f)
+            {
+                continue; // behind player
+            }
+
+            float angleToEnemy = MathF.Atan2(rel.Y, rel.X) - player.Angle;
+            angleToEnemy = MathF.Atan2(MathF.Sin(angleToEnemy), MathF.Cos(angleToEnemy));
+            if (MathF.Abs(angleToEnemy) > halfFov)
+            {
+                continue; // outside FOV
+            }
+
+            int spriteScreenX = (int)((InternalWidth * 0.5f) * (1f + (transformX / transformY)));
+            int spriteHeight = Math.Max(1, (int)(DungeonMap.TileSize * projPlaneDist / transformY));
+            int spriteWidth = spriteHeight;
+
+            int drawBottom = horizon + (spriteHeight / 2); // bottom-center anchor to floor plane
+            int drawTop = drawBottom - spriteHeight;
+            int drawLeft = spriteScreenX - (spriteWidth / 2);
+            int drawRight = drawLeft + spriteWidth;
+
+            var sprite = GetSpritePixels(enemy.Texture);
+            byte shade = (byte)(255 * Math.Clamp(1f - (transformY / _maxRayDistance), 0.25f, 1f));
+
+            for (int screenX = Math.Max(0, drawLeft); screenX < Math.Min(InternalWidth, drawRight); screenX++)
+            {
+                if (transformY >= _depthBuffer[screenX])
+                {
+                    continue;
+                }
+
+                int texX = (int)((screenX - drawLeft) / (float)spriteWidth * sprite.Width);
+                texX = Math.Clamp(texX, 0, sprite.Width - 1);
+
+                for (int screenY = Math.Max(0, drawTop); screenY < Math.Min(InternalHeight, drawBottom); screenY++)
+                {
+                    int texY = (int)((screenY - drawTop) / (float)spriteHeight * sprite.Height);
+                    texY = Math.Clamp(texY, 0, sprite.Height - 1);
+
+                    Color texel = sprite.Pixels[(texY * sprite.Width) + texX];
+                    if (texel.A < 10) continue;
+
+                    _framebuffer[(screenY * InternalWidth) + screenX] = Modulate(texel, shade);
+                }
+            }
+        }
+    }
+
+    private (Color[] Pixels, int Width, int Height) GetSpritePixels(Texture2D texture)
+    {
+        if (_spriteCache.TryGetValue(texture.Id, out var cached)) return cached;
+
+        Image image = Raylib.LoadImageFromTexture(texture);
+        Color[] colors = new Color[image.Width * image.Height];
+
+        unsafe
+        {
+            Color* pixels = Raylib.LoadImageColors(image);
+            for (int i = 0; i < colors.Length; i++) colors[i] = pixels[i];
+            Raylib.UnloadImageColors(pixels);
+        }
+
+        Raylib.UnloadImage(image);
+
+        cached = (colors, texture.Width, texture.Height);
+        _spriteCache[texture.Id] = cached;
+        return cached;
     }
 
     private (float Distance, float TextureX, bool HitVertical) CastRay(Vector2 origin, float rayAngle)
@@ -213,11 +306,7 @@ public sealed class RaycastRenderer
     }
 
     private static Color Modulate(Color c, byte shade)
-        => new(
-    (byte)(c.R * shade / 255),
-    (byte)(c.G * shade / 255),
-    (byte)(c.B * shade / 255),
-    (byte)255);
+        => new((byte)(c.R * shade / 255), (byte)(c.G * shade / 255), (byte)(c.B * shade / 255), (byte)255);
 
     private static int PositiveMod(int value, int modulus)
     {
@@ -277,20 +366,22 @@ public sealed class RaycastRenderer
             }
         }
 
+        foreach (Enemy enemy in _map.Enemies.Where(e => e.IsAlive))
+        {
+            int ex = offsetX + (int)((enemy.Position.X / DungeonMap.TileSize) * cell);
+            int ey = offsetY + (int)((enemy.Position.Y / DungeonMap.TileSize) * cell);
+            Raylib.DrawCircle(ex, ey, 3f, Color.Red);
+        }
+
         float px = offsetX + (player.Position.X / DungeonMap.TileSize) * cell;
         float py = offsetY + (player.Position.Y / DungeonMap.TileSize) * cell;
 
         Vector2 forward = new(MathF.Cos(player.Angle), MathF.Sin(player.Angle));
         Vector2 right = new(-forward.Y, forward.X);
-        float length = 8f;
-        float baseOffset = 4f;
-        float halfWidth = 4f;
-
-        Vector2 center = new Vector2(px, py);
-
-        Vector2 tip = center + (forward * length);
-        Vector2 left = center - (forward * baseOffset) - (right * halfWidth);
-        Vector2 rightPoint = center - (forward * baseOffset) + (right * halfWidth);
+        Vector2 center = new(px, py);
+        Vector2 tip = center + (forward * 8f);
+        Vector2 left = center - (forward * 4f) - (right * 4f);
+        Vector2 rightPoint = center - (forward * 4f) + (right * 4f);
 
         Raylib.DrawTriangle(tip, left, rightPoint, new Color(64, 196, 255, 255));
     }
