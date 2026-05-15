@@ -60,6 +60,7 @@ public sealed class RaycastRenderer
         float planeHeightDelta = isFloor
             ? cameraHeight                   // Eye to floor (z = 0)
             : (DungeonMap.TileSize - cameraHeight); // Eye to ceiling (z = tile size)
+        float projPlaneDist = (sw * 0.5f) / MathF.Tan(halfFov);
 
         for (int y = startY; y < endYExclusive; y++)
         {
@@ -69,7 +70,11 @@ public sealed class RaycastRenderer
                 continue;
             }
 
-            float rowDistance = (planeHeightDelta * sh) / (2f * rowOffset);
+            // Match wall projection scale:
+            // distance = planeHeightDelta * projectionPlaneDistance / verticalScreenOffset
+            // Using the same projection plane distance as walls keeps floor/ceiling tile size
+            // aligned to DungeonMap.TileSize cell boundaries in perspective.
+            float rowDistance = (planeHeightDelta * projPlaneDist) / rowOffset;
             float stepX = rowDistance * (rightRay.X - leftRay.X) / sw;
             float stepY = rowDistance * (rightRay.Y - leftRay.Y) / sw;
 
