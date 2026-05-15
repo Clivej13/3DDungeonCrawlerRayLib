@@ -70,12 +70,12 @@ public sealed class RaycastRenderer
 
                 var src = new Rectangle(tx, ty, 1, 1);
                 var floorDst = new Rectangle(x, y, 1, 1);
-                Raylib.DrawTexturePro(_wallTexture, src, floorDst, Vector2.Zero, 0f, new Color(floorShade, floorShade, floorShade, 255));
+                Raylib.DrawTexturePro(_wallTexture, src, floorDst, Vector2.Zero, 0f, new Color(floorShade, floorShade, floorShade, (byte)255));
 
                 if (ceilY >= 0 && ceilY <= ceilingEnd)
                 {
                     var ceilDst = new Rectangle(x, ceilY, 1, 1);
-                    Raylib.DrawTexturePro(_wallTexture, src, ceilDst, Vector2.Zero, 0f, new Color(ceilShade, ceilShade, ceilShade, 255));
+                    Raylib.DrawTexturePro(_wallTexture, src, ceilDst, Vector2.Zero, 0f, new Color(ceilShade, ceilShade, ceilShade, (byte)255));
                 }
 
                 worldX += stepX;
@@ -107,7 +107,7 @@ public sealed class RaycastRenderer
 
             var src = new Rectangle(hit.TextureX, 0, 1, _wallTexture.Height);
             var dst = new Rectangle(x, drawTop, 1, sliceHeight);
-            Raylib.DrawTexturePro(_wallTexture, src, dst, Vector2.Zero, 0f, new Color(shade, shade, shade, 255));
+            Raylib.DrawTexturePro(_wallTexture, src, dst, Vector2.Zero, 0f, new Color(shade, shade, shade, (byte)255));
         }
     }
 
