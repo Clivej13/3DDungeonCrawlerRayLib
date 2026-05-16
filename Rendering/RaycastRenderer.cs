@@ -227,7 +227,13 @@ public sealed class RaycastRenderer
                     Color texel = sprite.Pixels[(texY * sprite.Width) + texX];
                     if (texel.A < 10) continue;
 
-                    _framebuffer[(screenY * InternalWidth) + screenX] = Modulate(texel, shade);
+                    Color shaded = Modulate(texel, shade);
+                    if (enemy.HitFlashAmount > 0f)
+                    {
+                        shaded = Raylib.ColorLerp(shaded, Color.Red, enemy.HitFlashAmount * 0.7f);
+                    }
+
+                    _framebuffer[(screenY * InternalWidth) + screenX] = shaded;
                 }
             }
         }
