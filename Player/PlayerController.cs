@@ -25,6 +25,7 @@ public sealed class PlayerController
 
     private float _invulnerabilityTimer;
     private float _damageFlashTimer;
+    private float _targetPitchOffset;
 
     public float DamageFlashAmount => Math.Clamp(_damageFlashTimer / 0.12f, 0f, 1f);
 
@@ -45,8 +46,10 @@ public sealed class PlayerController
         Angle = MathF.IEEERemainder(Angle, MathF.Tau);
 
         // Doom-style fake pitch via horizon offset only, not true vertical rotation.
-        PitchOffset -= mouseDelta.Y * MouseSensitivityY;
-        PitchOffset = Math.Clamp(PitchOffset, -120f, 120f);
+        _targetPitchOffset -= mouseDelta.Y * MouseSensitivityY;
+        _targetPitchOffset = Math.Clamp(_targetPitchOffset, -260f, 260f);
+        float interpolation = 1f - MathF.Exp(-14f * deltaTime);
+PitchOffset += (_targetPitchOffset - PitchOffset) * interpolation;
 
         float turnInput = 0f;
         if (Raylib.IsKeyDown(KeyboardKey.Left)) turnInput -= 1f;

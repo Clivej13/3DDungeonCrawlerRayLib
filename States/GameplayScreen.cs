@@ -71,6 +71,8 @@ public sealed class GameplayScreen : IDisposable
                 enemy.Update(deltaTime, _player.Position, _map);
             }
 
+            ResolveEnemySeparation();
+
             HandleMeleeCombat();
             HandleEnemyCombat();
             HandleProgression();
@@ -172,22 +174,68 @@ public sealed class GameplayScreen : IDisposable
         }
     }
 
+    private void ResolveEnemySeparation()
+    {
+        List<Enemy> aliveEnemies = _map.Enemies.Where(e => e.IsAlive).ToList();
+
+        for (int i = 0; i < aliveEnemies.Count; i++)
+        {
+            Enemy a = aliveEnemies[i];
+            for (int j = i + 1; j < aliveEnemies.Count; j++)
+            {
+                Enemy b = aliveEnemies[j];
+                Vector2 delta = b.Position - a.Position;
+                float distSq = delta.LengthSquared();
+                float minDist = a.Radius + b.Radius;
+
+                if (distSq >= minDist * minDist) continue;
+
+                float dist = MathF.Sqrt(MathF.Max(distSq, 0.0001f));
+                Vector2 normal = delta / dist;
+                float overlap = minDist - dist;
+                Vector2 correction = normal * (overlap * 0.5f);
+
+                Vector2 newAPos = a.Position - correction;
+                Vector2 newBPos = b.Position + correction;
+
+                if (!HitsWorldCollision(a, newAPos)) a.SetPosition(newAPos);
+                if (!HitsWorldCollision(b, newBPos)) b.SetPosition(newBPos);
+            }
+        }
+    }
+
+    private bool HitsWorldCollision(Enemy enemy, Vector2 position)
+    {
+        float radius = enemy.Radius;
+        return _map.IsWallAtWorld(position.X - radius, position.Y - radius)
+            || _map.IsWallAtWorld(position.X + radius, position.Y - radius)
+            || _map.IsWallAtWorld(position.X - radius, position.Y + radius)
+            || _map.IsWallAtWorld(position.X + radius, position.Y + radius);
+    }
+
     public void Draw()
     {
         Raylib.DisableCursor();
         _renderer.Draw(_player);
         _renderer.DrawMinimap(_player);
 
-        Raylib.DrawText("WASD Move | Mouse Look | ESC Pause", 16, Raylib.GetScreenHeight() - 30, 18, Color.LightGray);
+        int hudPanelX = 14;
+        int hudPanelY = Raylib.GetScreenHeight() - 158;
+        int hudPanelW = 380;
+        int hudPanelH = 142;
+        Raylib.DrawRectangle(hudPanelX, hudPanelY, hudPanelW, hudPanelH, new Color(10, 12, 16, 190));
+        Raylib.DrawRectangleLines(hudPanelX, hudPanelY, hudPanelW, hudPanelH, new Color(120, 128, 144, 220));
+
+        Raylib.DrawText($"HP: {_player.Health:0}", hudPanelX + 12, hudPanelY + 10, 24, _player.Health > 25 ? Color.Lime : Color.Red);
+        Raylib.DrawText($"Silver Key: {(_player.HasSilverKey ? "Yes" : "No")}", hudPanelX + 12, hudPanelY + 42, 20, _player.HasSilverKey ? Color.SkyBlue : Color.Gray);
+        Raylib.DrawText($"Gold Key: {(_player.HasGoldKey ? "Yes" : "No")}", hudPanelX + 12, hudPanelY + 66, 20, _player.HasGoldKey ? Color.Gold : Color.Gray);
+        Raylib.DrawText("WASD Move | Mouse Look | ESC Pause", hudPanelX + 12, hudPanelY + 92, 18, Color.LightGray);
         Raylib.DrawText($"POS {_player.Position.X:0.0},{_player.Position.Y:0.0}  ANG {_player.Angle:0.00}  PITCH {_player.PitchOffset:0}",
-            16, Raylib.GetScreenHeight() - 54, 18, new Color(190, 190, 190, 220));
-        Raylib.DrawText($"HP: {_player.Health:0}", 16, 14, 24, _player.Health > 25 ? Color.Lime : Color.Red);
-        Raylib.DrawText($"Silver Key: {(_player.HasSilverKey ? "Yes" : "No")}", 16, 42, 20, _player.HasSilverKey ? Color.SkyBlue : Color.Gray);
-        Raylib.DrawText($"Gold Key: {(_player.HasGoldKey ? "Yes" : "No")}", 16, 64, 20, _player.HasGoldKey ? Color.Gold : Color.Gray);
+            hudPanelX + 12, hudPanelY + 114, 16, new Color(190, 190, 190, 220));
 
         if (_statusTextTimer > 0f)
         {
-            Raylib.DrawText(_statusText, 16, 90, 20, Color.Orange);
+            Raylib.DrawText(_statusText, hudPanelX + 12, hudPanelY - 24, 20, Color.Orange);
         }
 
         if (_player.DamageFlashAmount > 0f)

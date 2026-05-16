@@ -36,6 +36,11 @@ public abstract class Enemy : Entity
 
     public abstract void Update(float dt, Vector2 playerPos, DungeonMap map);
 
+    public void SetPosition(Vector2 position)
+    {
+        Position = position;
+    }
+
     protected bool HitsWall(DungeonMap map, float x, float y)
     {
         return map.IsWallAtWorld(x - Radius, y - Radius)
