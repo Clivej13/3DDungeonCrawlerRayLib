@@ -210,8 +210,8 @@ public sealed class RaycastRenderer
             }
 
             int spriteScreenX = (int)((InternalWidth * 0.5f) * (1f + (transformX / transformY)));
-            int spriteHeight = Math.Max(1, (int)(DungeonMap.TileSize * projPlaneDist / transformY * 0.78f));
-            int spriteWidth = Math.Max(1, (int)(spriteHeight * 0.72f));
+            int spriteHeight = Math.Max(1, (int)(DungeonMap.TileSize * projPlaneDist / transformY * 0.50f));
+            int spriteWidth = spriteHeight;
 
             int drawBottom = horizon + (spriteHeight / 2); // bottom-center anchor to floor plane
             int drawTop = drawBottom - spriteHeight;
@@ -488,7 +488,7 @@ public sealed class RaycastRenderer
             int kx = offsetX + (int)((key.Position.X / DungeonMap.TileSize) * cell);
             int ky = offsetY + (int)((key.Position.Y / DungeonMap.TileSize) * cell);
             Color color = key.Type == KeyType.Silver ? new Color(190, 205, 220, 255) : new Color(255, 210, 70, 255);
-            Raylib.DrawCircle(kx, ky, 2f, color);
+            Raylib.DrawCircle(kx, ky, 5f, color);
         }
 
         foreach (DoorEntity door in _map.Doors)
@@ -496,7 +496,7 @@ public sealed class RaycastRenderer
             int dx = offsetX + (int)((door.Position.X / DungeonMap.TileSize) * cell);
             int dy = offsetY + (int)((door.Position.Y / DungeonMap.TileSize) * cell);
             Texture2D lockIcon = door.Type == KeyType.Silver ? _silverLockTexture : _goldLockTexture;
-            Rectangle dst = new(dx - 4, dy - 4, 8, 8);
+            Rectangle dst = new(dx - 8, dy - 8, 16, 16);
             Raylib.DrawTexturePro(lockIcon, new Rectangle(0, 0, lockIcon.Width, lockIcon.Height), dst, Vector2.Zero, 0f, Color.White);
             if (!door.IsLocked)
             {
