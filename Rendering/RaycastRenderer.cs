@@ -445,23 +445,14 @@ public sealed class RaycastRenderer
     private static byte ShadeByte(float distance, float min, float max, float falloff)
         => (byte)(DistanceShade(distance, min, max, falloff) * 255f);
 
-    private static bool TryGetMinimapPoint(Vector2 worldPos, Vector2 playerPos, int visibleTiles, int offsetX, int offsetY, int cell, out Vector2 minimapPos)
-    {
-        float deltaTilesX = (worldPos.X - playerPos.X) / DungeonMap.TileSize;
-        float deltaTilesY = (worldPos.Y - playerPos.Y) / DungeonMap.TileSize;
-        float halfTiles = visibleTiles * 0.5f;
+    private static Vector2 WorldToMinimap(Vector2 worldPos, Vector2 playerPos, Vector2 minimapCenter, float pixelsPerWorldUnit)
+        => minimapCenter + ((worldPos - playerPos) * pixelsPerWorldUnit);
 
-        if (MathF.Abs(deltaTilesX) > halfTiles || MathF.Abs(deltaTilesY) > halfTiles)
-        {
-            minimapPos = default;
-            return false;
-        }
-
-        float centerX = offsetX + (visibleTiles * cell * 0.5f);
-        float centerY = offsetY + (visibleTiles * cell * 0.5f);
-        minimapPos = new Vector2(centerX + (deltaTilesX * cell), centerY + (deltaTilesY * cell));
-        return true;
-    }
+    private static bool IsMinimapPointVisible(Vector2 point, Rectangle bounds, float padding = 0f)
+        => point.X >= bounds.X - padding
+        && point.X <= bounds.X + bounds.Width + padding
+        && point.Y >= bounds.Y - padding
+        && point.Y <= bounds.Y + bounds.Height + padding;
 
     private static Rectangle ClipRect(Rectangle rect, Rectangle bounds)
     {
@@ -514,6 +505,9 @@ public sealed class RaycastRenderer
         int playerTileX = (int)(player.Position.X / DungeonMap.TileSize);
         int playerTileY = (int)(player.Position.Y / DungeonMap.TileSize);
         int halfTiles = visibleTiles / 2;
+        float pixelsPerWorldUnit = cell / (float)DungeonMap.TileSize;
+        Rectangle minimapBounds = new(offsetX, offsetY, mapPixelWidth, mapPixelHeight);
+        Vector2 minimapCenter = new(offsetX + (mapPixelWidth * 0.5f), offsetY + (mapPixelHeight * 0.5f));
 
         Raylib.DrawRectangle(offsetX - 6, offsetY - 6, mapPixelWidth + 12, mapPixelHeight + 12, new Color(10, 14, 20, 200));
         Raylib.DrawRectangleLines(offsetX - 6, offsetY - 6, mapPixelWidth + 12, mapPixelHeight + 12, new Color(120, 128, 144, 220));
@@ -526,7 +520,8 @@ public sealed class RaycastRenderer
                 if (mapX < 0 || mapX >= _map.Width || mapY < 0 || mapY >= _map.Height) continue;
 
                 Vector2 tileCenterWorld = new((mapX + 0.5f) * DungeonMap.TileSize, (mapY + 0.5f) * DungeonMap.TileSize);
-                if (!TryGetMinimapPoint(tileCenterWorld, player.Position, visibleTiles + 1, offsetX, offsetY, cell, out Vector2 tileCenter)) continue;
+                Vector2 tileCenter = WorldToMinimap(tileCenterWorld, player.Position, minimapCenter, pixelsPerWorldUnit);
+                if (!IsMinimapPointVisible(tileCenter, minimapBounds, cell * 0.75f)) continue;
 
                 float viewX = (tileCenter.X - offsetX) / cell;
                 float viewY = (tileCenter.Y - offsetY) / cell;
@@ -538,7 +533,6 @@ public sealed class RaycastRenderer
                 Color faded = Modulate(baseColor, (byte)(edgeFade * 255));
 
                 Rectangle tileRect = new(tileCenter.X - (cell * 0.5f), tileCenter.Y - (cell * 0.5f), cell, cell);
-                Rectangle minimapBounds = new(offsetX, offsetY, mapPixelWidth, mapPixelHeight);
                 tileRect = ClipRect(tileRect, minimapBounds);
                 if (tileRect.Width <= 0 || tileRect.Height <= 0) continue;
                 Raylib.DrawRectangleRec(tileRect, faded);
@@ -547,13 +541,15 @@ public sealed class RaycastRenderer
 
         foreach (Enemy enemy in _map.Enemies.Where(e => e.IsAlive))
         {
-            if (!TryGetMinimapPoint(enemy.Position, player.Position, visibleTiles, offsetX, offsetY, cell, out Vector2 pos)) continue;
+            Vector2 pos = WorldToMinimap(enemy.Position, player.Position, minimapCenter, pixelsPerWorldUnit);
+            if (!IsMinimapPointVisible(pos, minimapBounds, 3f)) continue;
             Raylib.DrawCircle((int)pos.X, (int)pos.Y, 3f, Color.Red);
         }
 
         foreach (KeyItem key in _map.Keys.Where(k => !k.IsCollected))
         {
-            if (!TryGetMinimapPoint(key.Position, player.Position, visibleTiles, offsetX, offsetY, cell, out Vector2 pos)) continue;
+            Vector2 pos = WorldToMinimap(key.Position, player.Position, minimapCenter, pixelsPerWorldUnit);
+            if (!IsMinimapPointVisible(pos, minimapBounds, 8f)) continue;
             Texture2D keyIcon = key.Type == KeyType.Silver ? GetMinimapKeyTexture(KeyType.Silver) : GetMinimapKeyTexture(KeyType.Gold);
             const int keyIconSize = 12;
             Rectangle dst = new(pos.X - (keyIconSize / 2), pos.Y - (keyIconSize / 2), keyIconSize, keyIconSize);
@@ -563,7 +559,8 @@ public sealed class RaycastRenderer
         foreach (DoorEntity door in _map.Doors)
         {
             if (!door.IsLocked) continue; // opened doors render nothing on minimap
-            if (!TryGetMinimapPoint(door.Position, player.Position, visibleTiles, offsetX, offsetY, cell, out Vector2 pos)) continue;
+            Vector2 pos = WorldToMinimap(door.Position, player.Position, minimapCenter, pixelsPerWorldUnit);
+            if (!IsMinimapPointVisible(pos, minimapBounds, 10f)) continue;
 
             Texture2D lockIcon = door.Type == KeyType.Silver ? _silverLockTexture : _goldLockTexture;
             Rectangle dst = new(pos.X - 8, pos.Y - 8, 16, 16);
@@ -576,10 +573,9 @@ public sealed class RaycastRenderer
             }
         }
 
-        float px = offsetX + (mapPixelWidth * 0.5f);
-        float py = offsetY + (mapPixelHeight * 0.5f);
-        px = Math.Clamp(px, offsetX + borderPadding, offsetX + mapPixelWidth - borderPadding);
-        py = Math.Clamp(py, offsetY + borderPadding, offsetY + mapPixelHeight - borderPadding);
+        Vector2 playerMinimapPos = WorldToMinimap(player.Position, player.Position, minimapCenter, pixelsPerWorldUnit);
+        float px = Math.Clamp(playerMinimapPos.X, offsetX + borderPadding, offsetX + mapPixelWidth - borderPadding);
+        float py = Math.Clamp(playerMinimapPos.Y, offsetY + borderPadding, offsetY + mapPixelHeight - borderPadding);
 
         Vector2 forward = new(MathF.Cos(player.Angle), MathF.Sin(player.Angle));
         Vector2 right = new(-forward.Y, forward.X);
