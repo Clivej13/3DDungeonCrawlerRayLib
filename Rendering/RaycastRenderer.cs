@@ -465,6 +465,12 @@ public sealed class RaycastRenderer
         const int cell = 16;
         const int offsetX = 16;
         const int offsetY = 16;
+        int mapPixelWidth = _map.Width * cell;
+        int mapPixelHeight = _map.Height * cell;
+        int borderPadding = 10;
+
+        Raylib.DrawRectangle(offsetX - 6, offsetY - 6, mapPixelWidth + 12, mapPixelHeight + 12, new Color(10, 14, 20, 200));
+        Raylib.DrawRectangleLines(offsetX - 6, offsetY - 6, mapPixelWidth + 12, mapPixelHeight + 12, new Color(120, 128, 144, 220));
 
         for (int y = 0; y < _map.Height; y++)
         {
@@ -487,6 +493,8 @@ public sealed class RaycastRenderer
         {
             int kx = offsetX + (int)((key.Position.X / DungeonMap.TileSize) * cell);
             int ky = offsetY + (int)((key.Position.Y / DungeonMap.TileSize) * cell);
+            kx = Math.Clamp(kx, offsetX + borderPadding, offsetX + mapPixelWidth - borderPadding);
+            ky = Math.Clamp(ky, offsetY + borderPadding, offsetY + mapPixelHeight - borderPadding);
             Texture2D keyIcon = key.Type == KeyType.Silver ? GetMinimapKeyTexture(KeyType.Silver) : GetMinimapKeyTexture(KeyType.Gold);
             const int keyIconSize = 12;
             Rectangle dst = new(kx - (keyIconSize / 2), ky - (keyIconSize / 2), keyIconSize, keyIconSize);
@@ -497,6 +505,8 @@ public sealed class RaycastRenderer
         {
             int dx = offsetX + (int)((door.Position.X / DungeonMap.TileSize) * cell);
             int dy = offsetY + (int)((door.Position.Y / DungeonMap.TileSize) * cell);
+            dx = Math.Clamp(dx, offsetX + borderPadding, offsetX + mapPixelWidth - borderPadding);
+            dy = Math.Clamp(dy, offsetY + borderPadding, offsetY + mapPixelHeight - borderPadding);
             if (!door.IsLocked) continue; // opened doors render nothing on minimap
 
             Texture2D lockIcon = door.Type == KeyType.Silver ? _silverLockTexture : _goldLockTexture;
@@ -512,6 +522,8 @@ public sealed class RaycastRenderer
 
         float px = offsetX + (player.Position.X / DungeonMap.TileSize) * cell;
         float py = offsetY + (player.Position.Y / DungeonMap.TileSize) * cell;
+        px = Math.Clamp(px, offsetX + borderPadding, offsetX + mapPixelWidth - borderPadding);
+        py = Math.Clamp(py, offsetY + borderPadding, offsetY + mapPixelHeight - borderPadding);
 
         Vector2 forward = new(MathF.Cos(player.Angle), MathF.Sin(player.Angle));
         Vector2 right = new(-forward.Y, forward.X);
