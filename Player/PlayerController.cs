@@ -48,7 +48,8 @@ public sealed class PlayerController
         // Doom-style fake pitch via horizon offset only, not true vertical rotation.
         _targetPitchOffset -= mouseDelta.Y * MouseSensitivityY;
         _targetPitchOffset = Math.Clamp(_targetPitchOffset, -260f, 260f);
-        PitchOffset = MathF.Lerp(PitchOffset, _targetPitchOffset, 1f - MathF.Exp(-14f * deltaTime));
+        float interpolation = 1f - MathF.Exp(-14f * deltaTime);
+PitchOffset += (_targetPitchOffset - PitchOffset) * interpolation;
 
         float turnInput = 0f;
         if (Raylib.IsKeyDown(KeyboardKey.Left)) turnInput -= 1f;
