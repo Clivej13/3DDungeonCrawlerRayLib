@@ -11,7 +11,9 @@ public sealed class TextureManager : IDisposable
     public Texture2D GoldKeyTexture { get; }
     public Texture2D ClosedDoorTexture { get; }
     public Texture2D OpenDoorTexture { get; }
-    public Sound InteractionSound { get; }
+    public Texture2D SilverLockTexture { get; }
+    public Texture2D GoldLockTexture { get; }
+    public Texture2D TickLockTexture { get; }
 
     public TextureManager()
     {
@@ -29,13 +31,16 @@ public sealed class TextureManager : IDisposable
         GoldKeyTexture = Raylib.LoadTexture("Assets/Textures/gold_key.png");
         ClosedDoorTexture = Raylib.LoadTexture("Assets/Textures/closed_door.png");
         OpenDoorTexture = Raylib.LoadTexture("Assets/Textures/open_door.png");
+        SilverLockTexture = Raylib.LoadTexture("Assets/Textures/silver_lock.png");
+        GoldLockTexture = Raylib.LoadTexture("Assets/Textures/gold_lock.png");
+        TickLockTexture = Raylib.LoadTexture("Assets/Textures/tick_lock.png");
         Raylib.SetTextureFilter(SilverKeyTexture, TextureFilter.Point);
         Raylib.SetTextureFilter(GoldKeyTexture, TextureFilter.Point);
         Raylib.SetTextureFilter(ClosedDoorTexture, TextureFilter.Point);
         Raylib.SetTextureFilter(OpenDoorTexture, TextureFilter.Point);
-
-        if (!Raylib.IsAudioDeviceReady()) Raylib.InitAudioDevice();
-        InteractionSound = Raylib.LoadSound("Assets/Sounds/open_door.wav");
+        Raylib.SetTextureFilter(SilverLockTexture, TextureFilter.Point);
+        Raylib.SetTextureFilter(GoldLockTexture, TextureFilter.Point);
+        Raylib.SetTextureFilter(TickLockTexture, TextureFilter.Point);
     }
 
     public void Dispose()
@@ -47,6 +52,8 @@ public sealed class TextureManager : IDisposable
         Raylib.UnloadTexture(GoldKeyTexture);
         Raylib.UnloadTexture(ClosedDoorTexture);
         Raylib.UnloadTexture(OpenDoorTexture);
-        Raylib.UnloadSound(InteractionSound);
+        Raylib.UnloadTexture(SilverLockTexture);
+        Raylib.UnloadTexture(GoldLockTexture);
+        Raylib.UnloadTexture(TickLockTexture);
     }
 }

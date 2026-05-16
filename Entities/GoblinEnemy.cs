@@ -7,6 +7,7 @@ namespace DungeonCrawler.Entities;
 public sealed class GoblinEnemy : Enemy
 {
     private const float AggroRange = 360f;
+    public bool IsChasing { get; private set; }
 
     public float Damage { get; } = 12f;
     public float AttackCooldown { get; } = 0.85f;
@@ -26,6 +27,7 @@ public sealed class GoblinEnemy : Enemy
         if (!IsAlive) return;
         TickTimers(dt);
         _attackCooldownTimer = MathF.Max(0f, _attackCooldownTimer - dt);
+        IsChasing = false;
 
         Vector2 toPlayer = playerPos - Position;
         float distSq = toPlayer.LengthSquared();
@@ -33,6 +35,7 @@ public sealed class GoblinEnemy : Enemy
 
         Vector2 dir = Vector2.Normalize(toPlayer);
         Vector2 desired = Position + dir * MoveSpeed * dt;
+        IsChasing = true;
 
         if (!HitsWall(map, desired.X, Position.Y)) Position = new Vector2(desired.X, Position.Y);
         if (!HitsWall(map, Position.X, desired.Y)) Position = new Vector2(Position.X, desired.Y);
