@@ -21,6 +21,7 @@ public sealed class PlayerController
     public bool IsInvulnerable => _invulnerabilityTimer > 0f;
     public bool HasSilverKey { get; set; }
     public bool HasGoldKey { get; set; }
+    public bool IsMoving { get; private set; }
 
     private float _invulnerabilityTimer;
     private float _damageFlashTimer;
@@ -68,6 +69,7 @@ public sealed class PlayerController
         {
             velocity = Vector2.Normalize(velocity);
         }
+        IsMoving = velocity.LengthSquared() > 0.0001f;
 
         Vector2 desired = Position + velocity * MoveSpeed * deltaTime;
         TryMove(desired);

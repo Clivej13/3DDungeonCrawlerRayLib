@@ -23,6 +23,7 @@ public sealed class GameplayScreen : IDisposable
     private readonly TextureManager _textures;
     private readonly RaycastRenderer _renderer;
     private readonly WeaponRenderer _weaponRenderer;
+    private readonly AudioManager _audio;
     private bool _didHitDuringSwing;
     private float _attackCooldownTimer;
     private GameplayPhase _phase = GameplayPhase.Playing;
@@ -39,8 +40,9 @@ public sealed class GameplayScreen : IDisposable
         _textures = new TextureManager();
         _map = new DungeonMap("Assets/Maps/test_map.json", _textures.GoblinTexture, _textures.SilverKeyTexture, _textures.GoldKeyTexture);
         _player = new PlayerController(_map);
-        _renderer = new RaycastRenderer(_map, _textures.DungeonTexture, _textures.ClosedDoorTexture, _textures.OpenDoorTexture);
+        _renderer = new RaycastRenderer(_map, _textures.DungeonTexture, _textures.ClosedDoorTexture, _textures.OpenDoorTexture, _textures.SilverLockTexture, _textures.GoldLockTexture, _textures.TickLockTexture);
         _weaponRenderer = new WeaponRenderer(_textures.PlayerAnimationsTexture);
+        _audio = new AudioManager();
     }
 
     public void Update(InputHandler input, float deltaTime)
@@ -72,6 +74,7 @@ public sealed class GameplayScreen : IDisposable
             HandleMeleeCombat();
             HandleEnemyCombat();
             HandleProgression();
+            _audio.Update(deltaTime, _player, _map.Enemies.OfType<GoblinEnemy>());
             _map.Enemies.RemoveAll(e => !e.IsAlive);
         }
         else
@@ -95,7 +98,7 @@ public sealed class GameplayScreen : IDisposable
             key.Collect();
             if (key.Type == KeyType.Silver) _player.HasSilverKey = true;
             if (key.Type == KeyType.Gold) _player.HasGoldKey = true;
-            Raylib.PlaySound(_textures.InteractionSound);
+            Raylib.PlaySound(_audio.KeyPickupSound);
             Console.WriteLine($"[Progression] Picked up {key.Type} key.");
         }
 
@@ -112,7 +115,7 @@ public sealed class GameplayScreen : IDisposable
             }
 
             door.Unlock();
-            Raylib.PlaySound(_textures.InteractionSound);
+            Raylib.PlaySound(_audio.InteractionSound);
             Console.WriteLine($"[Progression] Unlocked {door.Type} door.");
         }
 
@@ -203,5 +206,9 @@ public sealed class GameplayScreen : IDisposable
         }
     }
 
-    public void Dispose() => _textures.Dispose();
+    public void Dispose()
+    {
+        _audio.Dispose();
+        _textures.Dispose();
+    }
 }
