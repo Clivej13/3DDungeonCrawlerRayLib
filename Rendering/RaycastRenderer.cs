@@ -213,7 +213,7 @@ public sealed class RaycastRenderer
             int spriteHeight = Math.Max(1, (int)(DungeonMap.TileSize * projPlaneDist / transformY * 0.50f));
             int spriteWidth = spriteHeight;
 
-            int drawBottom = horizon + (spriteHeight / 2); // bottom-center anchor to floor plane
+            int drawBottom = horizon + spriteHeight; // floor-aligned anchor so feet sit on floor
             int drawTop = drawBottom - spriteHeight;
             int drawLeft = spriteScreenX - (spriteWidth / 2);
             int drawRight = drawLeft + spriteWidth;
@@ -487,18 +487,24 @@ public sealed class RaycastRenderer
         {
             int kx = offsetX + (int)((key.Position.X / DungeonMap.TileSize) * cell);
             int ky = offsetY + (int)((key.Position.Y / DungeonMap.TileSize) * cell);
-            Color color = key.Type == KeyType.Silver ? new Color(190, 205, 220, 255) : new Color(255, 210, 70, 255);
-            Raylib.DrawCircle(kx, ky, 5f, color);
+            Texture2D keyIcon = key.Type == KeyType.Silver ? GetMinimapKeyTexture(KeyType.Silver) : GetMinimapKeyTexture(KeyType.Gold);
+            const int keyIconSize = 12;
+            Rectangle dst = new(kx - (keyIconSize / 2), ky - (keyIconSize / 2), keyIconSize, keyIconSize);
+            Raylib.DrawTexturePro(keyIcon, new Rectangle(0, 0, keyIcon.Width, keyIcon.Height), dst, Vector2.Zero, 0f, Color.White);
         }
 
         foreach (DoorEntity door in _map.Doors)
         {
             int dx = offsetX + (int)((door.Position.X / DungeonMap.TileSize) * cell);
             int dy = offsetY + (int)((door.Position.Y / DungeonMap.TileSize) * cell);
+            if (!door.IsLocked) continue; // opened doors render nothing on minimap
+
             Texture2D lockIcon = door.Type == KeyType.Silver ? _silverLockTexture : _goldLockTexture;
             Rectangle dst = new(dx - 8, dy - 8, 16, 16);
             Raylib.DrawTexturePro(lockIcon, new Rectangle(0, 0, lockIcon.Width, lockIcon.Height), dst, Vector2.Zero, 0f, Color.White);
-            if (!door.IsLocked)
+
+            bool hasRequiredKey = door.Type == KeyType.Silver ? player.HasSilverKey : player.HasGoldKey;
+            if (hasRequiredKey)
             {
                 Raylib.DrawTexturePro(_tickLockTexture, new Rectangle(0, 0, _tickLockTexture.Width, _tickLockTexture.Height), dst, Vector2.Zero, 0f, Color.White);
             }
@@ -515,5 +521,11 @@ public sealed class RaycastRenderer
         Vector2 rightPoint = center - (forward * 4f) + (right * 4f);
 
         Raylib.DrawTriangle(tip, left, rightPoint, new Color(64, 196, 255, 255));
+    }
+
+    private Texture2D GetMinimapKeyTexture(KeyType keyType)
+    {
+        KeyItem? key = _map.Keys.FirstOrDefault(k => k.Type == keyType);
+        return key?.Texture ?? (keyType == KeyType.Silver ? _silverLockTexture : _goldLockTexture);
     }
 }
