@@ -1,48 +1,42 @@
 {
   "_comment": [
-    "Map rows use: 1 = wall, 0 = floor",
-    "Enemy and player coordinates are WORLD coordinates, not grid coordinates",
-    "Tile size is 64",
-    "World position to grid conversion:",
-    "gridX = floor(x / 64)",
-    "gridY = floor(y / 64)",
-    "Enemies MUST spawn on floor tiles only",
-    "Do not place enemies inside wall cells"
+    "Improved progression layout",
+    "Designed for billboard sprites and simple combat",
+    "Wider rooms reduce sprite clipping"
   ],
+
   "tileSize": 64,
+
   "rows": [
     "1111111111111111",
     "1000000000000001",
-    "1011110111111101",
-    "1000010100000101",
-    "1111010101110101",
-    "1000010001010001",
-    "1011111101011111",
+    "1011111111111101",
+    "1000001000000001",
+    "1111101011111101",
+    "1000001000000101",
+    "1011111111110101",
+    "1000000000010101",
+    "1011111111010101",
+    "1000000001010001",
+    "1011111101011101",
     "1000000101000001",
-    "1111010101111101",
-    "1001010100000101",
-    "1001010111110101",
-    "1000010000010001",
-    "1011111111011101",
-    "1000000001000001",
-    "1011111101111101",
+    "1111110101111101",
+    "1000000000000001",
+    "1011111111111101",
     "1111111111111111"
   ],
+
   "playerSpawn": {
     "x": 96,
-    "y": 96,
-    "angle": 0
+    "y": 96
   },
-  "objective": {
-    "type": "artifact",
-    "x": 832,
-    "y": 832
-  },
+
   "exit": {
-    "x": 96,
-    "y": 96,
+    "x": 864,
+    "y": 832,
     "requiresAllKeys": true
   },
+
   "enemies": [
     {
       "type": "goblin",
@@ -51,48 +45,45 @@
     },
     {
       "type": "goblin",
-      "x": 608,
-      "y": 224
+      "x": 416,
+      "y": 416
     },
+    {
+  "type": "goblin",
+  "x": 672,
+  "y": 352
+},
     {
       "type": "goblin",
       "x": 736,
-      "y": 608
-    },
-    {
-      "type": "goblin",
-      "x": 416,
       "y": 736
-    },
-    {
-      "type": "goblin",
-      "x": 864,
-      "y": 864
     }
   ],
+
   "keys": [
     {
       "type": "silver",
-      "x": 352,
-      "y": 224
+      "x": 224,
+      "y": 352
     },
     {
       "type": "gold",
       "x": 800,
-      "y": 800
+      "y": 736
     }
   ],
+
   "doors": [
     {
       "type": "silver",
-      "x": 640,
-      "y": 320,
+      "x": 416,
+      "y": 288,
       "locked": true
     },
     {
       "type": "gold",
       "x": 736,
-      "y": 736,
+      "y": 608,
       "locked": true
     }
   ]
