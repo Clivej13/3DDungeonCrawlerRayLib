@@ -7,6 +7,11 @@ public sealed class TextureManager : IDisposable
     public Texture2D DungeonTexture { get; }
     public Texture2D PlayerAnimationsTexture { get; }
     public Texture2D GoblinTexture { get; }
+    public Texture2D SilverKeyTexture { get; }
+    public Texture2D GoldKeyTexture { get; }
+    public Texture2D ClosedDoorTexture { get; }
+    public Texture2D OpenDoorTexture { get; }
+    public Sound InteractionSound { get; }
 
     public TextureManager()
     {
@@ -19,6 +24,18 @@ public sealed class TextureManager : IDisposable
 
         GoblinTexture = Raylib.LoadTexture("Assets/Textures/goblin.png");
         Raylib.SetTextureFilter(GoblinTexture, TextureFilter.Point);
+
+        SilverKeyTexture = Raylib.LoadTexture("Assets/Textures/silver_key.png");
+        GoldKeyTexture = Raylib.LoadTexture("Assets/Textures/gold_key.png");
+        ClosedDoorTexture = Raylib.LoadTexture("Assets/Textures/closed_door.png");
+        OpenDoorTexture = Raylib.LoadTexture("Assets/Textures/open_door.png");
+        Raylib.SetTextureFilter(SilverKeyTexture, TextureFilter.Point);
+        Raylib.SetTextureFilter(GoldKeyTexture, TextureFilter.Point);
+        Raylib.SetTextureFilter(ClosedDoorTexture, TextureFilter.Point);
+        Raylib.SetTextureFilter(OpenDoorTexture, TextureFilter.Point);
+
+        if (!Raylib.IsAudioDeviceReady()) Raylib.InitAudioDevice();
+        InteractionSound = Raylib.LoadSound("Assets/Sounds/open_door.wav");
     }
 
     public void Dispose()
@@ -26,5 +43,10 @@ public sealed class TextureManager : IDisposable
         Raylib.UnloadTexture(DungeonTexture);
         Raylib.UnloadTexture(PlayerAnimationsTexture);
         Raylib.UnloadTexture(GoblinTexture);
+        Raylib.UnloadTexture(SilverKeyTexture);
+        Raylib.UnloadTexture(GoldKeyTexture);
+        Raylib.UnloadTexture(ClosedDoorTexture);
+        Raylib.UnloadTexture(OpenDoorTexture);
+        Raylib.UnloadSound(InteractionSound);
     }
 }

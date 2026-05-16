@@ -9,9 +9,7 @@
     "Enemies MUST spawn on floor tiles only",
     "Do not place enemies inside wall cells"
   ],
-
   "tileSize": 64,
-
   "rows": [
     "1111111111111111",
     "1000000000000001",
@@ -30,49 +28,72 @@
     "1011111101111101",
     "1111111111111111"
   ],
-
   "playerSpawn": {
     "x": 96,
     "y": 96,
     "angle": 0
   },
-
   "objective": {
     "type": "artifact",
     "x": 832,
     "y": 832
   },
-
   "exit": {
     "x": 96,
-    "y": 96
+    "y": 96,
+    "requiresAllKeys": true
   },
-
   "enemies": [
-  {
-    "type": "goblin",
-    "x": 288,
-    "y": 224
-  },
-  {
-    "type": "goblin",
-    "x": 608,
-    "y": 224
-  },
-  {
-    "type": "goblin",
-    "x": 736,
-    "y": 608
-  },
-  {
-    "type": "goblin",
-    "x": 416,
-    "y": 736
-  },
-  {
-    "type": "goblin",
-    "x": 864,
-    "y": 864
-  }
-]
+    {
+      "type": "goblin",
+      "x": 288,
+      "y": 224
+    },
+    {
+      "type": "goblin",
+      "x": 608,
+      "y": 224
+    },
+    {
+      "type": "goblin",
+      "x": 736,
+      "y": 608
+    },
+    {
+      "type": "goblin",
+      "x": 416,
+      "y": 736
+    },
+    {
+      "type": "goblin",
+      "x": 864,
+      "y": 864
+    }
+  ],
+  "keys": [
+    {
+      "type": "silver",
+      "x": 352,
+      "y": 224
+    },
+    {
+      "type": "gold",
+      "x": 800,
+      "y": 800
+    }
+  ],
+  "doors": [
+    {
+      "type": "silver",
+      "x": 640,
+      "y": 320,
+      "locked": true
+    },
+    {
+      "type": "gold",
+      "x": 736,
+      "y": 736,
+      "locked": true
+    }
+  ]
 }
