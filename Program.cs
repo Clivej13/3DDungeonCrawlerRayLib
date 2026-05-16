@@ -20,8 +20,14 @@ class Program
         var mainMenu = new MainMenuScreen(stateController);
         var settingsMenu = new SettingsMenuScreen(stateController, settings);
         var controlsMenu = new ControlsMenuScreen(stateController);
-        using var gameplay = new GameplayScreen(stateController);
+        GameplayScreen gameplay = new GameplayScreen(stateController);
         var pauseMenu = new PauseMenuScreen(stateController);
+
+        void StartNewGameplaySession()
+        {
+            gameplay.Dispose();
+            gameplay = new GameplayScreen(stateController);
+        }
 
         var updates = new Dictionary<GameState, Action<float>>
         {
@@ -37,9 +43,11 @@ class Program
             [GameState.MainMenu] = mainMenu.Draw,
             [GameState.SettingsMenu] = settingsMenu.Draw,
             [GameState.ControlsMenu] = controlsMenu.Draw,
-            [GameState.Gameplay] = gameplay.Draw,
+            [GameState.Gameplay] = () => gameplay.Draw(),
             [GameState.PauseMenu] = () => { gameplay.Draw(); pauseMenu.Draw(); }
         };
+
+        GameState previousState = stateController.CurrentState;
 
         bool running = true;
         while (running)
@@ -54,6 +62,12 @@ class Program
 
             float dt = Raylib.GetFrameTime();
 
+            if (previousState == GameState.MainMenu && stateController.CurrentState == GameState.Gameplay)
+            {
+                StartNewGameplaySession();
+            }
+            previousState = stateController.CurrentState;
+
             if (stateController.CurrentState == GameState.Exiting)
             {
                 running = false;
@@ -62,6 +76,19 @@ class Program
             {
                 // Exactly one state update per frame ensures Escape is processed once.
                 update(dt);
+
+                if (stateController.CurrentState == GameState.Gameplay)
+                {
+                    if (gameplay.RequestNewGame)
+                    {
+                        StartNewGameplaySession();
+                        stateController.ChangeState(GameState.Gameplay);
+                    }
+                    else if (gameplay.RequestMainMenu)
+                    {
+                        stateController.ReturnToMainMenu();
+                    }
+                }
             }
 
             Raylib.BeginDrawing();
@@ -74,5 +101,6 @@ class Program
         }
 
         Raylib.CloseWindow();
+        gameplay.Dispose();
     }
 }

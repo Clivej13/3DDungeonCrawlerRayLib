@@ -14,7 +14,8 @@ public sealed class GameplayScreen : IDisposable
     private enum GameplayPhase
     {
         Playing,
-        Victory
+        Victory,
+        GameOver
     }
 
     private readonly GameStateController _stateController;
@@ -30,6 +31,8 @@ public sealed class GameplayScreen : IDisposable
     private float _levelTimer;
     private float _statusTextTimer;
     private string _statusText = string.Empty;
+    public bool RequestNewGame { get; private set; }
+    public bool RequestMainMenu { get; private set; }
 
     private const float SwordCooldown = 0.35f;
     private const int SwordHitFrame = 3;
@@ -47,15 +50,31 @@ public sealed class GameplayScreen : IDisposable
 
     public void Update(InputHandler input, float deltaTime)
     {
+        RequestNewGame = false;
+        RequestMainMenu = false;
+
+        if (_phase == GameplayPhase.Victory || _phase == GameplayPhase.GameOver)
+        {
+            _weaponRenderer.Update(deltaTime);
+
+            if (Raylib.IsKeyPressed(KeyboardKey.N))
+            {
+                RequestNewGame = true;
+            }
+            else if (Raylib.IsKeyPressed(KeyboardKey.M) || input.BackPressed())
+            {
+                RequestMainMenu = true;
+            }
+
+            return;
+        }
+
         _levelTimer += deltaTime;
         _attackCooldownTimer = MathF.Max(0f, _attackCooldownTimer - deltaTime);
         _statusTextTimer = MathF.Max(0f, _statusTextTimer - deltaTime);
 
-        bool gameplayActive = _phase == GameplayPhase.Playing;
-        if (gameplayActive)
-        {
-            _player.Update(deltaTime);
-            _weaponRenderer.Update(deltaTime);
+        _player.Update(deltaTime);
+        _weaponRenderer.Update(deltaTime);
 
             if (Raylib.IsMouseButtonPressed(MouseButton.Left) && _attackCooldownTimer <= 0f)
             {
@@ -65,23 +84,25 @@ public sealed class GameplayScreen : IDisposable
                 Console.WriteLine("[Combat] Player sword swing started.");
             }
 
-            foreach (Enemy enemy in _map.Enemies)
-            {
-                enemy.DistanceToPlayer = Vector2.Distance(enemy.Position, _player.Position);
-                enemy.Update(deltaTime, _player.Position, _map);
-            }
-
-            ResolveEnemySeparation();
-
-            HandleMeleeCombat();
-            HandleEnemyCombat();
-            HandleProgression();
-            _audio.Update(deltaTime, _player, _map.Enemies.OfType<GoblinEnemy>());
-            _map.Enemies.RemoveAll(e => !e.IsAlive);
-        }
-        else
+        foreach (Enemy enemy in _map.Enemies)
         {
-            _weaponRenderer.Update(deltaTime);
+            enemy.DistanceToPlayer = Vector2.Distance(enemy.Position, _player.Position);
+            enemy.Update(deltaTime, _player.Position, _map);
+        }
+
+        ResolveEnemySeparation();
+
+        HandleMeleeCombat();
+        HandleEnemyCombat();
+        HandleProgression();
+        _audio.Update(deltaTime, _player, _map.Enemies.OfType<GoblinEnemy>());
+        _map.Enemies.RemoveAll(e => !e.IsAlive);
+
+        if (!_player.IsAlive)
+        {
+            _phase = GameplayPhase.GameOver;
+            Console.WriteLine("[Gameplay] Player died.");
+            return;
         }
 
         if (input.BackPressed())
@@ -250,7 +271,14 @@ public sealed class GameplayScreen : IDisposable
         {
             Raylib.DrawRectangle(0, 0, Raylib.GetScreenWidth(), Raylib.GetScreenHeight(), new Color(0, 0, 0, 196));
             Raylib.DrawText("YOU ESCAPED", Raylib.GetScreenWidth() / 2 - 140, Raylib.GetScreenHeight() / 2 - 20, 48, Color.Lime);
-            Raylib.DrawText("Press ESC to return to menu", Raylib.GetScreenWidth() / 2 - 150, Raylib.GetScreenHeight() / 2 + 34, 24, Color.White);
+            Raylib.DrawText("N: New Game   M/ESC: Main Menu", Raylib.GetScreenWidth() / 2 - 170, Raylib.GetScreenHeight() / 2 + 34, 24, Color.White);
+        }
+
+        if (_phase == GameplayPhase.GameOver)
+        {
+            Raylib.DrawRectangle(0, 0, Raylib.GetScreenWidth(), Raylib.GetScreenHeight(), new Color(0, 0, 0, 210));
+            Raylib.DrawText("GAME OVER", Raylib.GetScreenWidth() / 2 - 130, Raylib.GetScreenHeight() / 2 - 20, 48, Color.Red);
+            Raylib.DrawText("N: New Game   M/ESC: Main Menu", Raylib.GetScreenWidth() / 2 - 170, Raylib.GetScreenHeight() / 2 + 34, 24, Color.White);
         }
     }
 
