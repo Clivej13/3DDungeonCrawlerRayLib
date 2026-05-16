@@ -47,11 +47,11 @@ class Program
             [GameState.PauseMenu] = () => { gameplay.Draw(); pauseMenu.Draw(); }
         };
 
-        GameState previousState = stateController.CurrentState;
-
         bool running = true;
         while (running)
         {
+            GameState stateAtFrameStart = stateController.CurrentState;
+
             // WindowShouldClose is for OS-level close requests (X button / platform close event).
             // It should terminate app immediately and must never be reused as pause/menu input.
             if (Raylib.WindowShouldClose())
@@ -61,12 +61,6 @@ class Program
             }
 
             float dt = Raylib.GetFrameTime();
-
-            if (previousState == GameState.MainMenu && stateController.CurrentState == GameState.Gameplay)
-            {
-                StartNewGameplaySession();
-            }
-            previousState = stateController.CurrentState;
 
             if (stateController.CurrentState == GameState.Exiting)
             {
@@ -89,6 +83,14 @@ class Program
                         stateController.ReturnToMainMenu();
                     }
                 }
+            }
+
+            // Recreate gameplay in one owned place whenever entering Gameplay from any other state.
+            // This guarantees a fresh session for MainMenu->NewGame, including transitions that
+            // happen during menu update (same-frame state change).
+            if (stateAtFrameStart != GameState.Gameplay && stateController.CurrentState == GameState.Gameplay)
+            {
+                StartNewGameplaySession();
             }
 
             Raylib.BeginDrawing();
