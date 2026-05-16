@@ -16,6 +16,14 @@ public sealed class PlayerController
     public float RotationSpeed { get; set; } = 2.4f;
     public float MouseSensitivityX { get; set; } = 0.0035f;
     public float MouseSensitivityY { get; set; } = 0.65f;
+    public float Health { get; private set; } = 100f;
+    public bool IsAlive => Health > 0f;
+    public bool IsInvulnerable => _invulnerabilityTimer > 0f;
+
+    private float _invulnerabilityTimer;
+    private float _damageFlashTimer;
+
+    public float DamageFlashAmount => Math.Clamp(_damageFlashTimer / 0.12f, 0f, 1f);
 
     public PlayerController(DungeonMap map)
     {
@@ -26,6 +34,9 @@ public sealed class PlayerController
 
     public void Update(float deltaTime)
     {
+        _invulnerabilityTimer = MathF.Max(0f, _invulnerabilityTimer - deltaTime);
+        _damageFlashTimer = MathF.Max(0f, _damageFlashTimer - deltaTime);
+
         var mouseDelta = Raylib.GetMouseDelta();
         Angle += mouseDelta.X * MouseSensitivityX;
         Angle = MathF.IEEERemainder(Angle, MathF.Tau);
@@ -58,6 +69,18 @@ public sealed class PlayerController
 
         Vector2 desired = Position + velocity * MoveSpeed * deltaTime;
         TryMove(desired);
+    }
+
+    public bool TryTakeDamage(float damage)
+    {
+        if (!IsAlive || IsInvulnerable) return false;
+
+        Health = MathF.Max(0f, Health - damage);
+        _invulnerabilityTimer = 0.5f;
+        _damageFlashTimer = 0.12f;
+
+        Console.WriteLine($"[Combat] Player took {damage:0} damage. HP={Health:0}");
+        return true;
     }
 
     private void TryMove(Vector2 desired)
