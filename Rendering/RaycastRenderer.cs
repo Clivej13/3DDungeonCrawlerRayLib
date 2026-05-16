@@ -440,6 +440,22 @@ public sealed class RaycastRenderer
             Raylib.DrawCircle(ex, ey, 3f, Color.Red);
         }
 
+        foreach (KeyItem key in _map.Keys.Where(k => !k.IsCollected))
+        {
+            int kx = offsetX + (int)((key.Position.X / DungeonMap.TileSize) * cell);
+            int ky = offsetY + (int)((key.Position.Y / DungeonMap.TileSize) * cell);
+            Color color = key.Type == KeyType.Silver ? new Color(190, 205, 220, 255) : new Color(255, 210, 70, 255);
+            Raylib.DrawCircle(kx, ky, 2f, color);
+        }
+
+        foreach (DoorEntity door in _map.Doors.Where(d => d.IsLocked))
+        {
+            int dx = offsetX + (int)((door.Position.X / DungeonMap.TileSize) * cell);
+            int dy = offsetY + (int)((door.Position.Y / DungeonMap.TileSize) * cell);
+            Color color = door.Type == KeyType.Silver ? new Color(160, 180, 200, 255) : new Color(214, 170, 40, 255);
+            Raylib.DrawRectangle(dx - 2, dy - 2, 4, 4, color);
+        }
+
         float px = offsetX + (player.Position.X / DungeonMap.TileSize) * cell;
         float py = offsetY + (player.Position.Y / DungeonMap.TileSize) * cell;
 

@@ -11,6 +11,12 @@ namespace DungeonCrawler.States;
 
 public sealed class GameplayScreen : IDisposable
 {
+    private enum GameplayPhase
+    {
+        Playing,
+        Victory
+    }
+
     private readonly GameStateController _stateController;
     private readonly DungeonMap _map;
     private readonly PlayerController _player;
@@ -19,7 +25,8 @@ public sealed class GameplayScreen : IDisposable
     private readonly WeaponRenderer _weaponRenderer;
     private bool _didHitDuringSwing;
     private float _attackCooldownTimer;
-    private bool _isVictory;
+    private GameplayPhase _phase = GameplayPhase.Playing;
+    private float _levelTimer;
     private float _statusTextTimer;
     private string _statusText = string.Empty;
 
@@ -38,32 +45,39 @@ public sealed class GameplayScreen : IDisposable
 
     public void Update(InputHandler input, float deltaTime)
     {
+        _levelTimer += deltaTime;
         _attackCooldownTimer = MathF.Max(0f, _attackCooldownTimer - deltaTime);
         _statusTextTimer = MathF.Max(0f, _statusTextTimer - deltaTime);
 
-        if (_isVictory) return;
-
-        _player.Update(deltaTime);
-        _weaponRenderer.Update(deltaTime);
-
-        if (Raylib.IsMouseButtonPressed(MouseButton.Left) && _attackCooldownTimer <= 0f)
+        bool gameplayActive = _phase == GameplayPhase.Playing;
+        if (gameplayActive)
         {
-            _weaponRenderer.TriggerAttack();
-            _didHitDuringSwing = false;
-            _attackCooldownTimer = SwordCooldown;
-            Console.WriteLine("[Combat] Player sword swing started.");
-        }
+            _player.Update(deltaTime);
+            _weaponRenderer.Update(deltaTime);
 
-        foreach (Enemy enemy in _map.Enemies)
+            if (Raylib.IsMouseButtonPressed(MouseButton.Left) && _attackCooldownTimer <= 0f)
+            {
+                _weaponRenderer.TriggerAttack();
+                _didHitDuringSwing = false;
+                _attackCooldownTimer = SwordCooldown;
+                Console.WriteLine("[Combat] Player sword swing started.");
+            }
+
+            foreach (Enemy enemy in _map.Enemies)
+            {
+                enemy.DistanceToPlayer = Vector2.Distance(enemy.Position, _player.Position);
+                enemy.Update(deltaTime, _player.Position, _map);
+            }
+
+            HandleMeleeCombat();
+            HandleEnemyCombat();
+            HandleProgression();
+            _map.Enemies.RemoveAll(e => !e.IsAlive);
+        }
+        else
         {
-            enemy.DistanceToPlayer = Vector2.Distance(enemy.Position, _player.Position);
-            enemy.Update(deltaTime, _player.Position, _map);
+            _weaponRenderer.Update(deltaTime);
         }
-
-        HandleMeleeCombat();
-        HandleEnemyCombat();
-        HandleProgression();
-        _map.Enemies.RemoveAll(e => !e.IsAlive);
 
         if (input.BackPressed())
         {
@@ -92,7 +106,7 @@ public sealed class GameplayScreen : IDisposable
             bool hasKey = door.Type == KeyType.Silver ? _player.HasSilverKey : _player.HasGoldKey;
             if (!hasKey)
             {
-                _statusText = "Door Locked";
+                _statusText = door.Type == KeyType.Silver ? "Need Silver Key" : "Need Gold Key";
                 _statusTextTimer = 1.0f;
                 continue;
             }
@@ -103,7 +117,8 @@ public sealed class GameplayScreen : IDisposable
         }
 
         if (_map.Exit is null) return;
-        if (Vector2.DistanceSquared(_player.Position, new Vector2(_map.Exit.X, _map.Exit.Y)) > 24f * 24f) return;
+        if (_levelTimer < 1.0f) return;
+        if (Vector2.DistanceSquared(_player.Position, new Vector2(_map.Exit.X, _map.Exit.Y)) > 40f * 40f) return;
 
         if (_map.Exit.RequiresAllKeys && _map.Keys.Any(k => !k.IsCollected))
         {
@@ -112,7 +127,7 @@ public sealed class GameplayScreen : IDisposable
             return;
         }
 
-        _isVictory = true;
+        _phase = GameplayPhase.Victory;
         Console.WriteLine("[Progression] Player escaped dungeon.");
     }
 
@@ -180,11 +195,11 @@ public sealed class GameplayScreen : IDisposable
 
         _weaponRenderer.Draw();
 
-        if (_isVictory)
+        if (_phase == GameplayPhase.Victory)
         {
-            Raylib.DrawRectangle(0, 0, Raylib.GetScreenWidth(), Raylib.GetScreenHeight(), new Color(0, 0, 0, 170));
+            Raylib.DrawRectangle(0, 0, Raylib.GetScreenWidth(), Raylib.GetScreenHeight(), new Color(0, 0, 0, 196));
             Raylib.DrawText("YOU ESCAPED", Raylib.GetScreenWidth() / 2 - 140, Raylib.GetScreenHeight() / 2 - 20, 48, Color.Lime);
-            Raylib.DrawText("Press ESC for pause menu", Raylib.GetScreenWidth() / 2 - 130, Raylib.GetScreenHeight() / 2 + 34, 24, Color.White);
+            Raylib.DrawText("Press ESC to return to menu", Raylib.GetScreenWidth() / 2 - 150, Raylib.GetScreenHeight() / 2 + 34, 24, Color.White);
         }
     }
 
