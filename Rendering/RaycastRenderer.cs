@@ -19,6 +19,11 @@ public sealed class RaycastRenderer
     private const int InternalWidth = 320;
     private const int InternalHeight = 200;
 
+    private const float AtmosphereDistanceScale = 700f;
+    private const float WallMinBrightness = 0.05f;
+    private const float DoorMinBrightness = 0.06f;
+    private const float SpriteMinBrightness = 0.08f;
+
     private readonly Color[] _framebuffer;
     private readonly Texture2D _frameTexture;
     private readonly Color[] _wallPixels;
@@ -110,9 +115,9 @@ public sealed class RaycastRenderer
         float cameraHeight = DungeonMap.TileSize * 0.5f;
         float planeHeightDelta = isFloor ? cameraHeight : (DungeonMap.TileSize - cameraHeight);
 
-        float shadeMin = isFloor ? 0.18f : 0.10f;
-        float shadeMax = isFloor ? 0.68f : 0.36f;
-        float falloff = isFloor ? _maxRayDistance : _maxRayDistance * 0.85f;
+        float shadeMin = isFloor ? 0.10f : 0.06f;
+        float shadeMax = isFloor ? 0.54f : 0.30f;
+        float falloff = isFloor ? AtmosphereDistanceScale * 0.62f : AtmosphereDistanceScale * 0.52f;
 
         for (int y = startY; y < endYExclusive; y++)
         {
@@ -126,7 +131,10 @@ public sealed class RaycastRenderer
             float worldX = player.Position.X + rowDistance * leftRay.X;
             float worldY = player.Position.Y + rowDistance * leftRay.Y;
 
-            byte shade = (byte)(Math.Clamp(1f - rowDistance / falloff, shadeMin, shadeMax) * 255);
+            float distanceShade = DistanceShade(rowDistance, shadeMin, shadeMax, falloff);
+            if (isFloor) distanceShade *= 0.84f;
+            else distanceShade *= 0.90f;
+            byte shade = (byte)(Math.Clamp(distanceShade, shadeMin, shadeMax) * 255);
             int rowIndex = y * InternalWidth;
 
             for (int x = 0; x < InternalWidth; x++)
@@ -161,8 +169,9 @@ public sealed class RaycastRenderer
             int drawTop = horizon - (sliceHeight / 2);
             int drawBottom = drawTop + sliceHeight;
 
-            byte shade = (byte)(255 * Math.Clamp(1f - (correctedDist / _maxRayDistance), 0.2f, 1f));
-            if (hit.HitVertical) shade = (byte)(shade * 0.88f);
+            byte shade = ShadeByte(correctedDist, WallMinBrightness, 0.74f, AtmosphereDistanceScale * 0.85f);
+            if (hit.HitVertical) shade = (byte)(shade * 0.80f);
+            else shade = (byte)(shade * 0.90f);
 
             int texX = Math.Clamp((int)hit.TextureX, 0, _wallWidth - 1);
 
@@ -219,7 +228,7 @@ public sealed class RaycastRenderer
             int drawRight = drawLeft + spriteWidth;
 
             var sprite = GetSpritePixels(enemy.Texture);
-            byte shade = (byte)(255 * Math.Clamp(1f - (transformY / _maxRayDistance), 0.25f, 1f));
+            byte shade = ShadeByte(transformY, SpriteMinBrightness, 0.85f, AtmosphereDistanceScale * 0.9f);
 
             for (int screenX = Math.Max(0, drawLeft); screenX < Math.Min(InternalWidth, drawRight); screenX++)
             {
@@ -272,7 +281,7 @@ public sealed class RaycastRenderer
             int drawBottom = drawTop + sliceHeight;
             var doorSprite = GetSpritePixels(hit.IsLockedDoor ? _closedDoorTexture : _openDoorTexture);
             int texX = Math.Clamp((int)hit.TextureX, 0, doorSprite.Width - 1);
-            byte shade = (byte)(255 * Math.Clamp(1f - (correctedDist / _maxRayDistance), 0.24f, 1f));
+            byte shade = ShadeByte(correctedDist, DoorMinBrightness, 0.80f, AtmosphereDistanceScale * 0.9f);
 
             for (int y = Math.Max(0, drawTop); y < Math.Min(InternalHeight, drawBottom); y++)
             {
@@ -289,11 +298,11 @@ public sealed class RaycastRenderer
     {
         foreach (KeyItem key in _map.Keys.Where(k => !k.IsCollected))
         {
-            DrawBillboardSprite(key.Texture, key.Position, player, horizon, true);
+            DrawBillboardSprite(key.Texture, key.Position, player, horizon, true, 0.25f);
         }
     }
 
-    private void DrawBillboardSprite(Texture2D texture, Vector2 worldPos, PlayerController player, int horizon, bool checkDepth)
+    private void DrawBillboardSprite(Texture2D texture, Vector2 worldPos, PlayerController player, int horizon, bool checkDepth, float sizeScale = 1f)
     {
         float halfFov = _fov * 0.5f;
         Vector2 forward = new(MathF.Cos(player.Angle), MathF.Sin(player.Angle));
@@ -309,14 +318,14 @@ public sealed class RaycastRenderer
         if (transformY <= 0.001f) return;
 
         int spriteScreenX = (int)((InternalWidth * 0.5f) * (1f + (transformX / transformY)));
-        int spriteHeight = Math.Max(1, (int)(DungeonMap.TileSize * projPlaneDist / transformY));
+        int spriteHeight = Math.Max(1, (int)(DungeonMap.TileSize * projPlaneDist / transformY * sizeScale));
         int spriteWidth = spriteHeight;
-        int drawBottom = horizon + (spriteHeight / 2);
+        int drawBottom = horizon + Math.Max(1, spriteHeight);
         int drawTop = drawBottom - spriteHeight;
         int drawLeft = spriteScreenX - (spriteWidth / 2);
         int drawRight = drawLeft + spriteWidth;
 
-        byte shade = (byte)(255 * Math.Clamp(1f - (transformY / _maxRayDistance), 0.25f, 1f));
+        byte shade = ShadeByte(transformY, SpriteMinBrightness, 0.85f, AtmosphereDistanceScale * 0.9f);
         for (int screenX = Math.Max(0, drawLeft); screenX < Math.Min(InternalWidth, drawRight); screenX++)
         {
             if (checkDepth && transformY >= _depthBuffer[screenX]) continue;
@@ -430,6 +439,30 @@ public sealed class RaycastRenderer
         return (cellLocal * textureSize) / tileSize;
     }
 
+    private static float DistanceShade(float distance, float min, float max, float falloff)
+        => Math.Clamp(1f - (distance / MathF.Max(1f, falloff)), min, max);
+
+    private static byte ShadeByte(float distance, float min, float max, float falloff)
+        => (byte)(DistanceShade(distance, min, max, falloff) * 255f);
+
+    private static Vector2 WorldToMinimap(Vector2 worldPos, Vector2 playerPos, Vector2 minimapCenter, float pixelsPerWorldUnit)
+        => minimapCenter + ((worldPos - playerPos) * pixelsPerWorldUnit);
+
+    private static bool IsMinimapPointVisible(Vector2 point, Rectangle bounds, float padding = 0f)
+        => point.X >= bounds.X - padding
+        && point.X <= bounds.X + bounds.Width + padding
+        && point.Y >= bounds.Y - padding
+        && point.Y <= bounds.Y + bounds.Height + padding;
+
+    private static Rectangle ClipRect(Rectangle rect, Rectangle bounds)
+    {
+        float left = MathF.Max(rect.X, bounds.X);
+        float top = MathF.Max(rect.Y, bounds.Y);
+        float right = MathF.Min(rect.X + rect.Width, bounds.X + bounds.Width);
+        float bottom = MathF.Min(rect.Y + rect.Height, bounds.Y + bounds.Height);
+        return right <= left || bottom <= top ? new Rectangle(0, 0, 0, 0) : new Rectangle(left, top, right - left, bottom - top);
+    }
+
     private void DrawCrosshair()
     {
         int cx = InternalWidth / 2;
@@ -462,55 +495,75 @@ public sealed class RaycastRenderer
 
     public void DrawMinimap(PlayerController player)
     {
-        const int cell = 16;
+        const int visibleTiles = 9;
+        const int cell = 28;
         const int offsetX = 16;
         const int offsetY = 16;
-        int mapPixelWidth = _map.Width * cell;
-        int mapPixelHeight = _map.Height * cell;
+        int mapPixelWidth = visibleTiles * cell;
+        int mapPixelHeight = visibleTiles * cell;
         int borderPadding = 10;
+        int playerTileX = (int)(player.Position.X / DungeonMap.TileSize);
+        int playerTileY = (int)(player.Position.Y / DungeonMap.TileSize);
+        int halfTiles = visibleTiles / 2;
+        float pixelsPerWorldUnit = cell / (float)DungeonMap.TileSize;
+        Rectangle minimapBounds = new(offsetX, offsetY, mapPixelWidth, mapPixelHeight);
+        Vector2 minimapCenter = new(offsetX + (mapPixelWidth * 0.5f), offsetY + (mapPixelHeight * 0.5f));
 
         Raylib.DrawRectangle(offsetX - 6, offsetY - 6, mapPixelWidth + 12, mapPixelHeight + 12, new Color(10, 14, 20, 200));
         Raylib.DrawRectangleLines(offsetX - 6, offsetY - 6, mapPixelWidth + 12, mapPixelHeight + 12, new Color(120, 128, 144, 220));
 
-        for (int y = 0; y < _map.Height; y++)
+        int searchRadius = halfTiles + 2;
+        for (int mapY = playerTileY - searchRadius; mapY <= playerTileY + searchRadius; mapY++)
         {
-            for (int x = 0; x < _map.Width; x++)
+            for (int mapX = playerTileX - searchRadius; mapX <= playerTileX + searchRadius; mapX++)
             {
-                bool wall = _map.IsWallAtGrid(x, y);
-                Raylib.DrawRectangle(offsetX + x * cell, offsetY + y * cell, cell - 1, cell - 1,
-                    wall ? new Color(84, 86, 90, 220) : new Color(32, 36, 40, 170));
+                if (mapX < 0 || mapX >= _map.Width || mapY < 0 || mapY >= _map.Height) continue;
+
+                Vector2 tileCenterWorld = new((mapX + 0.5f) * DungeonMap.TileSize, (mapY + 0.5f) * DungeonMap.TileSize);
+                Vector2 tileCenter = WorldToMinimap(tileCenterWorld, player.Position, minimapCenter, pixelsPerWorldUnit);
+                if (!IsMinimapPointVisible(tileCenter, minimapBounds, cell * 0.75f)) continue;
+
+                float viewX = (tileCenter.X - offsetX) / cell;
+                float viewY = (tileCenter.Y - offsetY) / cell;
+                float normalizedEdgeDist = MathF.Max(MathF.Abs(viewX - halfTiles), MathF.Abs(viewY - halfTiles)) / halfTiles;
+                float edgeFade = Math.Clamp(1f - normalizedEdgeDist * 0.45f, 0.45f, 1f);
+
+                bool wall = _map.IsWallAtGrid(mapX, mapY);
+                Color baseColor = wall ? new Color(84, 86, 90, 220) : new Color(32, 36, 40, 170);
+                Color faded = Modulate(baseColor, (byte)(edgeFade * 255));
+
+                Rectangle tileRect = new(tileCenter.X - (cell * 0.5f), tileCenter.Y - (cell * 0.5f), cell, cell);
+                tileRect = ClipRect(tileRect, minimapBounds);
+                if (tileRect.Width <= 0 || tileRect.Height <= 0) continue;
+                Raylib.DrawRectangleRec(tileRect, faded);
             }
         }
 
         foreach (Enemy enemy in _map.Enemies.Where(e => e.IsAlive))
         {
-            int ex = offsetX + (int)((enemy.Position.X / DungeonMap.TileSize) * cell);
-            int ey = offsetY + (int)((enemy.Position.Y / DungeonMap.TileSize) * cell);
-            Raylib.DrawCircle(ex, ey, 3f, Color.Red);
+            Vector2 pos = WorldToMinimap(enemy.Position, player.Position, minimapCenter, pixelsPerWorldUnit);
+            if (!IsMinimapPointVisible(pos, minimapBounds, 3f)) continue;
+            Raylib.DrawCircle((int)pos.X, (int)pos.Y, 3f, Color.Red);
         }
 
         foreach (KeyItem key in _map.Keys.Where(k => !k.IsCollected))
         {
-            int kx = offsetX + (int)((key.Position.X / DungeonMap.TileSize) * cell);
-            int ky = offsetY + (int)((key.Position.Y / DungeonMap.TileSize) * cell);
-            kx = Math.Clamp(kx, offsetX + borderPadding, offsetX + mapPixelWidth - borderPadding);
-            ky = Math.Clamp(ky, offsetY + borderPadding, offsetY + mapPixelHeight - borderPadding);
+            Vector2 pos = WorldToMinimap(key.Position, player.Position, minimapCenter, pixelsPerWorldUnit);
+            if (!IsMinimapPointVisible(pos, minimapBounds, 8f)) continue;
             Texture2D keyIcon = key.Type == KeyType.Silver ? GetMinimapKeyTexture(KeyType.Silver) : GetMinimapKeyTexture(KeyType.Gold);
             const int keyIconSize = 12;
-            Rectangle dst = new(kx - (keyIconSize / 2), ky - (keyIconSize / 2), keyIconSize, keyIconSize);
+            Rectangle dst = new(pos.X - (keyIconSize / 2), pos.Y - (keyIconSize / 2), keyIconSize, keyIconSize);
             Raylib.DrawTexturePro(keyIcon, new Rectangle(0, 0, keyIcon.Width, keyIcon.Height), dst, Vector2.Zero, 0f, Color.White);
         }
 
         foreach (DoorEntity door in _map.Doors)
         {
-            int dx = offsetX + (int)((door.Position.X / DungeonMap.TileSize) * cell);
-            int dy = offsetY + (int)((door.Position.Y / DungeonMap.TileSize) * cell);
-            dx = Math.Clamp(dx, offsetX + borderPadding, offsetX + mapPixelWidth - borderPadding);
-            dy = Math.Clamp(dy, offsetY + borderPadding, offsetY + mapPixelHeight - borderPadding);
             if (!door.IsLocked) continue; // opened doors render nothing on minimap
+            Vector2 pos = WorldToMinimap(door.Position, player.Position, minimapCenter, pixelsPerWorldUnit);
+            if (!IsMinimapPointVisible(pos, minimapBounds, 10f)) continue;
 
             Texture2D lockIcon = door.Type == KeyType.Silver ? _silverLockTexture : _goldLockTexture;
-            Rectangle dst = new(dx - 8, dy - 8, 16, 16);
+            Rectangle dst = new(pos.X - 8, pos.Y - 8, 16, 16);
             Raylib.DrawTexturePro(lockIcon, new Rectangle(0, 0, lockIcon.Width, lockIcon.Height), dst, Vector2.Zero, 0f, Color.White);
 
             bool hasRequiredKey = door.Type == KeyType.Silver ? player.HasSilverKey : player.HasGoldKey;
@@ -520,10 +573,9 @@ public sealed class RaycastRenderer
             }
         }
 
-        float px = offsetX + (player.Position.X / DungeonMap.TileSize) * cell;
-        float py = offsetY + (player.Position.Y / DungeonMap.TileSize) * cell;
-        px = Math.Clamp(px, offsetX + borderPadding, offsetX + mapPixelWidth - borderPadding);
-        py = Math.Clamp(py, offsetY + borderPadding, offsetY + mapPixelHeight - borderPadding);
+        Vector2 playerMinimapPos = WorldToMinimap(player.Position, player.Position, minimapCenter, pixelsPerWorldUnit);
+        float px = Math.Clamp(playerMinimapPos.X, offsetX + borderPadding, offsetX + mapPixelWidth - borderPadding);
+        float py = Math.Clamp(playerMinimapPos.Y, offsetY + borderPadding, offsetY + mapPixelHeight - borderPadding);
 
         Vector2 forward = new(MathF.Cos(player.Angle), MathF.Sin(player.Angle));
         Vector2 right = new(-forward.Y, forward.X);
