@@ -19,6 +19,8 @@ public sealed class PlayerController
     public float Health { get; private set; } = 100f;
     public bool IsAlive => Health > 0f;
     public bool IsInvulnerable => _invulnerabilityTimer > 0f;
+    public bool HasSilverKey { get; set; }
+    public bool HasGoldKey { get; set; }
 
     private float _invulnerabilityTimer;
     private float _damageFlashTimer;
@@ -103,9 +105,9 @@ public sealed class PlayerController
 
     private bool HitsWall(float x, float y, float radius)
     {
-        return _map.IsWallAtWorld(x - radius, y - radius)
-            || _map.IsWallAtWorld(x + radius, y - radius)
-            || _map.IsWallAtWorld(x - radius, y + radius)
-            || _map.IsWallAtWorld(x + radius, y + radius);
+        return _map.IsBlockedAtWorld(x - radius, y - radius)
+            || _map.IsBlockedAtWorld(x + radius, y - radius)
+            || _map.IsBlockedAtWorld(x - radius, y + radius)
+            || _map.IsBlockedAtWorld(x + radius, y + radius);
     }
 }

@@ -24,11 +24,15 @@ public sealed class RaycastRenderer
     private readonly Color[] _wallPixels;
     private readonly int _wallWidth;
     private readonly int _wallHeight;
+    private readonly Texture2D _closedDoorTexture;
+    private readonly Texture2D _openDoorTexture;
 
-    public RaycastRenderer(DungeonMap map, Texture2D wallTexture)
+    public RaycastRenderer(DungeonMap map, Texture2D wallTexture, Texture2D closedDoorTexture, Texture2D openDoorTexture)
     {
         _map = map;
         _wallTexture = wallTexture;
+        _closedDoorTexture = closedDoorTexture;
+        _openDoorTexture = openDoorTexture;
 
         _framebuffer = new Color[InternalWidth * InternalHeight];
         _depthBuffer = new float[InternalWidth];
@@ -65,6 +69,8 @@ public sealed class RaycastRenderer
         DrawCeiling(player, horizon);
         DrawWalls(player, horizon);
         DrawEnemies(player, horizon);
+        DrawDoors(player, horizon);
+        DrawKeys(player, horizon);
         DrawCrosshair();
 
         Raylib.UpdateTexture(_frameTexture, _framebuffer);
@@ -239,6 +245,61 @@ public sealed class RaycastRenderer
         }
     }
 
+    private void DrawDoors(PlayerController player, int horizon)
+    {
+        foreach (DoorEntity door in _map.Doors)
+        {
+            Texture2D texture = door.IsLocked ? _closedDoorTexture : _openDoorTexture;
+            DrawBillboardSprite(texture, door.Position, player, horizon, door.IsLocked);
+        }
+    }
+
+    private void DrawKeys(PlayerController player, int horizon)
+    {
+        foreach (KeyItem key in _map.Keys.Where(k => !k.IsCollected))
+        {
+            DrawBillboardSprite(key.Texture, key.Position, player, horizon, true);
+        }
+    }
+
+    private void DrawBillboardSprite(Texture2D texture, Vector2 worldPos, PlayerController player, int horizon, bool checkDepth)
+    {
+        float halfFov = _fov * 0.5f;
+        Vector2 forward = new(MathF.Cos(player.Angle), MathF.Sin(player.Angle));
+        Vector2 right = new(-forward.Y, forward.X);
+        Vector2 plane = right * MathF.Tan(halfFov);
+        float invDet = 1f / ((plane.X * forward.Y) - (forward.X * plane.Y));
+        float projPlaneDist = (InternalWidth * 0.5f) / MathF.Tan(halfFov);
+        var sprite = GetSpritePixels(texture);
+
+        Vector2 rel = worldPos - player.Position;
+        float transformX = invDet * ((forward.Y * rel.X) - (forward.X * rel.Y));
+        float transformY = invDet * ((-plane.Y * rel.X) + (plane.X * rel.Y));
+        if (transformY <= 0.001f) return;
+
+        int spriteScreenX = (int)((InternalWidth * 0.5f) * (1f + (transformX / transformY)));
+        int spriteHeight = Math.Max(1, (int)(DungeonMap.TileSize * projPlaneDist / transformY));
+        int spriteWidth = spriteHeight;
+        int drawBottom = horizon + (spriteHeight / 2);
+        int drawTop = drawBottom - spriteHeight;
+        int drawLeft = spriteScreenX - (spriteWidth / 2);
+        int drawRight = drawLeft + spriteWidth;
+
+        byte shade = (byte)(255 * Math.Clamp(1f - (transformY / _maxRayDistance), 0.25f, 1f));
+        for (int screenX = Math.Max(0, drawLeft); screenX < Math.Min(InternalWidth, drawRight); screenX++)
+        {
+            if (checkDepth && transformY >= _depthBuffer[screenX]) continue;
+            int texX = Math.Clamp((int)((screenX - drawLeft) / (float)spriteWidth * sprite.Width), 0, sprite.Width - 1);
+            for (int screenY = Math.Max(0, drawTop); screenY < Math.Min(InternalHeight, drawBottom); screenY++)
+            {
+                int texY = Math.Clamp((int)((screenY - drawTop) / (float)spriteHeight * sprite.Height), 0, sprite.Height - 1);
+                Color texel = sprite.Pixels[(texY * sprite.Width) + texX];
+                if (texel.A < 10) continue;
+                _framebuffer[(screenY * InternalWidth) + screenX] = Modulate(texel, shade);
+            }
+        }
+    }
+
     private (Color[] Pixels, int Width, int Height) GetSpritePixels(Texture2D texture)
     {
         if (_spriteCache.TryGetValue(texture.Id, out var cached)) return cached;
@@ -377,6 +438,22 @@ public sealed class RaycastRenderer
             int ex = offsetX + (int)((enemy.Position.X / DungeonMap.TileSize) * cell);
             int ey = offsetY + (int)((enemy.Position.Y / DungeonMap.TileSize) * cell);
             Raylib.DrawCircle(ex, ey, 3f, Color.Red);
+        }
+
+        foreach (KeyItem key in _map.Keys.Where(k => !k.IsCollected))
+        {
+            int kx = offsetX + (int)((key.Position.X / DungeonMap.TileSize) * cell);
+            int ky = offsetY + (int)((key.Position.Y / DungeonMap.TileSize) * cell);
+            Color color = key.Type == KeyType.Silver ? new Color(190, 205, 220, 255) : new Color(255, 210, 70, 255);
+            Raylib.DrawCircle(kx, ky, 2f, color);
+        }
+
+        foreach (DoorEntity door in _map.Doors.Where(d => d.IsLocked))
+        {
+            int dx = offsetX + (int)((door.Position.X / DungeonMap.TileSize) * cell);
+            int dy = offsetY + (int)((door.Position.Y / DungeonMap.TileSize) * cell);
+            Color color = door.Type == KeyType.Silver ? new Color(160, 180, 200, 255) : new Color(214, 170, 40, 255);
+            Raylib.DrawRectangle(dx - 2, dy - 2, 4, 4, color);
         }
 
         float px = offsetX + (player.Position.X / DungeonMap.TileSize) * cell;

@@ -6,6 +6,24 @@ namespace DungeonCrawler.World;
 
 public static class MapLoader
 {
+    public static bool TryParseKeyType(string value, out KeyType keyType)
+    {
+        if (value.Equals("silver", StringComparison.OrdinalIgnoreCase))
+        {
+            keyType = KeyType.Silver;
+            return true;
+        }
+
+        if (value.Equals("gold", StringComparison.OrdinalIgnoreCase))
+        {
+            keyType = KeyType.Gold;
+            return true;
+        }
+
+        keyType = KeyType.Silver;
+        return false;
+    }
+
     public static DungeonMapData LoadData(string mapPath)
     {
         var options = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
@@ -54,5 +72,17 @@ public static class MapLoader
         }
 
         return enemies;
+    }
+
+    public static bool IsWalkableSpawn(int[,] grid, int tileSize, float worldX, float worldY)
+    {
+        int gridX = (int)MathF.Floor(worldX / tileSize);
+        int gridY = (int)MathF.Floor(worldY / tileSize);
+        if (gridX < 0 || gridY < 0 || gridY >= grid.GetLength(0) || gridX >= grid.GetLength(1))
+        {
+            return false;
+        }
+
+        return grid[gridY, gridX] == 0;
     }
 }
