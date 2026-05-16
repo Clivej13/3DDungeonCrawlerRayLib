@@ -43,10 +43,10 @@ public abstract class Enemy : Entity
 
     protected bool HitsWall(DungeonMap map, float x, float y)
     {
-        return map.IsWallAtWorld(x - Radius, y - Radius)
-            || map.IsWallAtWorld(x + Radius, y - Radius)
-            || map.IsWallAtWorld(x - Radius, y + Radius)
-            || map.IsWallAtWorld(x + Radius, y + Radius);
+        return map.IsBlockedAtWorld(x - Radius, y - Radius)
+            || map.IsBlockedAtWorld(x + Radius, y - Radius)
+            || map.IsBlockedAtWorld(x - Radius, y + Radius)
+            || map.IsBlockedAtWorld(x + Radius, y + Radius);
     }
 
     protected void TickTimers(float dt)

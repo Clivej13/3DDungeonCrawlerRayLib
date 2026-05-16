@@ -20,7 +20,7 @@ class Program
         var mainMenu = new MainMenuScreen(stateController);
         var settingsMenu = new SettingsMenuScreen(stateController, settings);
         var controlsMenu = new ControlsMenuScreen(stateController);
-        using var gameplay = new GameplayScreen(stateController);
+        GameplayScreen gameplay = new GameplayScreen(stateController);
         var pauseMenu = new PauseMenuScreen(stateController);
 
         var updates = new Dictionary<GameState, Action<float>>
@@ -42,6 +42,7 @@ class Program
         };
 
         bool running = true;
+        GameState previousState = stateController.CurrentState;
         while (running)
         {
             // WindowShouldClose is for OS-level close requests (X button / platform close event).
@@ -53,6 +54,14 @@ class Program
             }
 
             float dt = Raylib.GetFrameTime();
+
+            bool shouldCreateNewSession = stateController.ConsumeNewGameRequested()
+                || (previousState == GameState.MainMenu && stateController.CurrentState == GameState.Gameplay);
+            if (shouldCreateNewSession)
+            {
+                gameplay.Dispose();
+                gameplay = new GameplayScreen(stateController);
+            }
 
             if (stateController.CurrentState == GameState.Exiting)
             {
@@ -71,7 +80,10 @@ class Program
                 draw();
             }
             Raylib.EndDrawing();
+            previousState = stateController.CurrentState;
         }
+
+        gameplay.Dispose();
 
         Raylib.CloseWindow();
     }

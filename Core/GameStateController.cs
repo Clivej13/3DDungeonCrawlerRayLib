@@ -6,12 +6,27 @@ namespace DungeonCrawler.Core;
 public sealed class GameStateController
 {
     private readonly Stack<GameState> _menuHistory = new();
+    private bool _newGameRequested;
 
     public GameState CurrentState { get; private set; } = GameState.MainMenu;
 
     public void ChangeState(GameState newState)
     {
         CurrentState = newState;
+    }
+
+    public void StartNewGame()
+    {
+        _menuHistory.Clear();
+        _newGameRequested = true;
+        CurrentState = GameState.Gameplay;
+    }
+
+    public bool ConsumeNewGameRequested()
+    {
+        bool wasRequested = _newGameRequested;
+        _newGameRequested = false;
+        return wasRequested;
     }
 
     public void OpenMenu(GameState targetMenu)
