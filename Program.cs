@@ -20,8 +20,14 @@ class Program
         var mainMenu = new MainMenuScreen(stateController);
         var settingsMenu = new SettingsMenuScreen(stateController, settings);
         var controlsMenu = new ControlsMenuScreen(stateController);
-        using var gameplay = new GameplayScreen(stateController);
+        GameplayScreen gameplay = new GameplayScreen(stateController);
         var pauseMenu = new PauseMenuScreen(stateController);
+
+        void StartNewGameplaySession()
+        {
+            gameplay.Dispose();
+            gameplay = new GameplayScreen(stateController);
+        }
 
         var updates = new Dictionary<GameState, Action<float>>
         {
@@ -37,13 +43,15 @@ class Program
             [GameState.MainMenu] = mainMenu.Draw,
             [GameState.SettingsMenu] = settingsMenu.Draw,
             [GameState.ControlsMenu] = controlsMenu.Draw,
-            [GameState.Gameplay] = gameplay.Draw,
+            [GameState.Gameplay] = () => gameplay.Draw(),
             [GameState.PauseMenu] = () => { gameplay.Draw(); pauseMenu.Draw(); }
         };
 
         bool running = true;
         while (running)
         {
+            GameState stateAtFrameStart = stateController.CurrentState;
+
             // WindowShouldClose is for OS-level close requests (X button / platform close event).
             // It should terminate app immediately and must never be reused as pause/menu input.
             if (Raylib.WindowShouldClose())
@@ -62,6 +70,27 @@ class Program
             {
                 // Exactly one state update per frame ensures Escape is processed once.
                 update(dt);
+
+                if (stateController.CurrentState == GameState.Gameplay)
+                {
+                    if (gameplay.RequestNewGame)
+                    {
+                        StartNewGameplaySession();
+                        stateController.ChangeState(GameState.Gameplay);
+                    }
+                    else if (gameplay.RequestMainMenu)
+                    {
+                        stateController.ReturnToMainMenu();
+                    }
+                }
+            }
+
+            // Recreate gameplay in one owned place whenever entering Gameplay from any other state.
+            // This guarantees a fresh session for MainMenu->NewGame, including transitions that
+            // happen during menu update (same-frame state change).
+            if (stateAtFrameStart != GameState.Gameplay && stateController.CurrentState == GameState.Gameplay)
+            {
+                StartNewGameplaySession();
             }
 
             Raylib.BeginDrawing();
@@ -74,5 +103,6 @@ class Program
         }
 
         Raylib.CloseWindow();
+        gameplay.Dispose();
     }
 }
