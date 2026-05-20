@@ -24,6 +24,8 @@ public sealed class GameplayScreen : IDisposable
     private readonly RaycastRenderer _renderer;
     private readonly WeaponRenderer _weaponRenderer;
     private readonly AudioManager _audio;
+    private readonly DoorSystem _doorSystem;
+    private string _doorPrompt = string.Empty;
     private bool _didHitDuringSwing;
     private float _attackCooldownTimer;
     private GameplayPhase _phase = GameplayPhase.Playing;
@@ -43,6 +45,7 @@ public sealed class GameplayScreen : IDisposable
         _renderer = new RaycastRenderer(_map, _textures.DungeonTexture, _textures.ClosedDoorTexture, _textures.OpenDoorTexture, _textures.SilverLockTexture, _textures.GoldLockTexture, _textures.TickLockTexture);
         _weaponRenderer = new WeaponRenderer(_textures.PlayerAnimationsTexture);
         _audio = new AudioManager();
+        _doorSystem = new DoorSystem(_map);
     }
 
     public void Update(InputHandler input, float deltaTime)
@@ -76,6 +79,7 @@ public sealed class GameplayScreen : IDisposable
             HandleMeleeCombat();
             HandleEnemyCombat();
             HandleProgression();
+            _doorSystem.Update(deltaTime, _player, _map.Enemies);
             _audio.Update(deltaTime, _player, _map.Enemies.OfType<GoblinEnemy>());
             _map.Enemies.RemoveAll(e => !e.IsAlive);
         }
@@ -104,21 +108,33 @@ public sealed class GameplayScreen : IDisposable
             Console.WriteLine($"[Progression] Picked up {key.Type} key.");
         }
 
-        foreach (DoorEntity door in _map.Doors.Where(d => d.IsLocked))
+        _doorPrompt = string.Empty;
+        DoorEntity? targetedDoor = _doorSystem.GetTargetedDoor(_player);
+        if (targetedDoor is not null)
         {
-            if (Vector2.DistanceSquared(_player.Position, door.Position) > 28f * 28f) continue;
-
-            bool hasKey = door.Type == KeyType.Silver ? _player.HasSilverKey : _player.HasGoldKey;
-            if (!hasKey)
+            bool hasKey = targetedDoor.Type == KeyType.Silver ? _player.HasSilverKey : _player.HasGoldKey;
+            _doorPrompt = targetedDoor.State switch
             {
-                _statusText = door.Type == KeyType.Silver ? "Need Silver Key" : "Need Gold Key";
-                _statusTextTimer = 1.0f;
-                continue;
-            }
+                DoorState.Closed => "Press E to Open Door",
+                DoorState.Locked when !hasKey => "Locked Door",
+                DoorState.Locked when hasKey => "Press E to Unlock Door",
+                _ => string.Empty
+            };
 
-            door.Unlock();
-            Raylib.PlaySound(_audio.InteractionSound);
-            Console.WriteLine($"[Progression] Unlocked {door.Type} door.");
+            bool interactPressed = Raylib.IsKeyPressed(KeyboardKey.E);
+            if (interactPressed)
+            {
+                bool didInteract = _doorSystem.TryInteract(_player, targetedDoor, out string? status);
+                if (didInteract)
+                {
+                    Raylib.PlaySound(_audio.InteractionSound);
+                }
+                else if (!string.IsNullOrWhiteSpace(status))
+                {
+                    _statusText = status!;
+                    _statusTextTimer = 1.0f;
+                }
+            }
         }
 
         if (_map.Exit is null) return;
@@ -236,6 +252,15 @@ public sealed class GameplayScreen : IDisposable
         if (_statusTextTimer > 0f)
         {
             Raylib.DrawText(_statusText, hudPanelX + 12, hudPanelY - 24, 20, Color.Orange);
+        }
+
+        if (!string.IsNullOrWhiteSpace(_doorPrompt))
+        {
+            int promptW = Raylib.MeasureText(_doorPrompt, 24);
+            int x = (Raylib.GetScreenWidth() - promptW) / 2;
+            int y = Raylib.GetScreenHeight() - 68;
+            Raylib.DrawRectangle(x - 12, y - 8, promptW + 24, 34, new Color(0, 0, 0, 170));
+            Raylib.DrawText(_doorPrompt, x, y, 24, Color.RayWhite);
         }
 
         if (_player.DamageFlashAmount > 0f)

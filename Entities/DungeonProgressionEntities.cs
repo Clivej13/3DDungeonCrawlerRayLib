@@ -1,3 +1,4 @@
+using DungeonCrawler.World;
 using Raylib_cs;
 using System.Numerics;
 
@@ -27,13 +28,35 @@ public sealed class KeyItem : Entity
 public sealed class DoorEntity : Entity
 {
     public KeyType Type { get; }
-    public bool IsLocked { get; private set; }
+    public DoorState State { get; private set; }
+    public bool IsLocked => State == DoorState.Locked;
+    public bool BlocksMovement => State is DoorState.Closed or DoorState.Locked or DoorState.Closing;
+    public bool BlocksRaycast => BlocksMovement;
+    public float TimeSinceOpened { get; private set; }
 
     public DoorEntity(Vector2 position, KeyType type, bool isLocked) : base(position)
     {
         Type = type;
-        IsLocked = isLocked;
+        State = isLocked ? DoorState.Locked : DoorState.Closed;
     }
 
-    public void Unlock() => IsLocked = false;
+    public void Unlock() => State = DoorState.Closed;
+
+    public void StartOpening()
+    {
+        State = DoorState.Opening;
+        State = DoorState.Open;
+        TimeSinceOpened = 0f;
+    }
+
+    public void StartClosing()
+    {
+        State = DoorState.Closing;
+        State = DoorState.Closed;
+    }
+
+    public void Tick(float dt)
+    {
+        if (State == DoorState.Open) TimeSinceOpened += dt;
+    }
 }

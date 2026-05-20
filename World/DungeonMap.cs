@@ -84,12 +84,18 @@ public sealed class DungeonMap
         return IsWallAtGrid(gx, gy);
     }
 
+
+    public DoorEntity? GetDoorAtGrid(int gx, int gy)
+    {
+        return Doors.FirstOrDefault(d => (int)(d.Position.X / TileSize) == gx && (int)(d.Position.Y / TileSize) == gy);
+    }
+
     public bool IsBlockedAtWorld(float worldX, float worldY)
     {
         if (IsWallAtWorld(worldX, worldY)) return true;
 
         const float doorRadius = 16f;
-        foreach (DoorEntity door in Doors.Where(d => d.IsLocked))
+        foreach (DoorEntity door in Doors.Where(d => d.BlocksMovement))
         {
             if (Vector2.DistanceSquared(new Vector2(worldX, worldY), door.Position) <= doorRadius * doorRadius)
             {
