@@ -407,10 +407,15 @@ public sealed class RaycastRenderer
             if (includeDoors)
             {
                 DoorEntity? door = _map.GetDoorAtGrid(mapX, mapY);
-                if (door is not null && door.BlocksRaycast)
+
+                if (door is not null)
                 {
                     hitDoor = true;
-                    isLockedDoor = door.IsLocked;
+
+                    // Closed + locked use closed sprite
+                    // Open uses open sprite
+                    isLockedDoor = door.State != DoorState.Open;
+
                     break;
                 }
             }
