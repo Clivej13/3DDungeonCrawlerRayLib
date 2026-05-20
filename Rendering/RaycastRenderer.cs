@@ -221,6 +221,66 @@ public sealed class RaycastRenderer
         }
     }
 
+
+    private void DrawEnemies(PlayerController player, int horizon)
+    {
+        float halfFov = _fov * 0.5f;
+        float invDet; // camera inverse determinant for world->camera transform
+
+        Vector2 forward = new(MathF.Cos(player.Angle), MathF.Sin(player.Angle));
+        Vector2 right = new(-forward.Y, forward.X);
+
+        Vector2 plane = right * MathF.Tan(halfFov);
+        invDet = 1f / ((plane.X * forward.Y) - (forward.X * plane.Y));
+        float projPlaneDist = (InternalWidth * 0.5f) / MathF.Tan(halfFov);
+
+        foreach (Enemy enemy in _map.Enemies.Where(e => e.IsAlive).OrderByDescending(e => e.DistanceToPlayer))
+        {
+            Vector2 rel = enemy.Position - player.Position;
+            float transformX = invDet * ((forward.Y * rel.X) - (forward.X * rel.Y));
+            float transformY = invDet * ((-plane.Y * rel.X) + (plane.X * rel.Y));
+            if (transformY <= 0.001f) continue;
+
+            float angleToEnemy = MathF.Atan2(rel.Y, rel.X) - player.Angle;
+            angleToEnemy = MathF.Atan2(MathF.Sin(angleToEnemy), MathF.Cos(angleToEnemy));
+            if (MathF.Abs(angleToEnemy) > halfFov) continue;
+
+            int spriteScreenX = (int)((InternalWidth * 0.5f) * (1f + (transformX / transformY)));
+            int spriteHeight = Math.Max(1, (int)(DungeonMap.TileSize * projPlaneDist / transformY * 0.50f));
+            int spriteWidth = spriteHeight;
+            int drawBottom = horizon + spriteHeight;
+            int drawTop = drawBottom - spriteHeight;
+            int drawLeft = spriteScreenX - (spriteWidth / 2);
+            int drawRight = drawLeft + spriteWidth;
+
+            var sprite = GetSpritePixels(enemy.Texture);
+            byte shade = ShadeByte(transformY, SpriteMinBrightness, 0.85f, AtmosphereDistanceScale * 0.9f);
+
+            for (int screenX = Math.Max(0, drawLeft); screenX < Math.Min(InternalWidth, drawRight); screenX++)
+            {
+                if (transformY >= _depthBuffer[screenX]) continue;
+
+                int texX = (int)((screenX - drawLeft) / (float)spriteWidth * sprite.Width);
+                texX = Math.Clamp(texX, 0, sprite.Width - 1);
+
+                for (int screenY = Math.Max(0, drawTop); screenY < Math.Min(InternalHeight, drawBottom); screenY++)
+                {
+                    int texY = Math.Clamp((int)((screenY - drawTop) / (float)spriteHeight * sprite.Height), 0, sprite.Height - 1);
+                    Color texel = sprite.Pixels[(texY * sprite.Width) + texX];
+                    if (texel.A < 10) continue;
+
+                    Color shaded = Modulate(texel, shade);
+                    if (enemy.HitFlashAmount > 0f)
+                    {
+                        shaded = Raylib.ColorLerp(shaded, Color.Red, enemy.HitFlashAmount * 0.7f);
+                    }
+
+                    _framebuffer[(screenY * InternalWidth) + screenX] = shaded;
+                }
+            }
+        }
+    }
+
     private void DrawKeys(PlayerController player, int horizon)
     {
         foreach (KeyItem key in _map.Keys.Where(k => !k.IsCollected))
