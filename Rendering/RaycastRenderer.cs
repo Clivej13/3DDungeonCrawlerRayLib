@@ -8,6 +8,20 @@ namespace DungeonCrawler.Rendering;
 
 public sealed class RaycastRenderer
 {
+    private enum RayHitType
+    {
+        Wall,
+        Door
+    }
+
+    private readonly record struct RayHit(
+        RayHitType Type,
+        float Distance,
+        float TextureX,
+        bool HitVertical,
+        bool BlocksView,
+        (Color[] Pixels, int Width, int Height) Texture);
+
     private readonly DungeonMap _map;
     private readonly Texture2D _wallTexture;
     private readonly float[] _depthBuffer;
@@ -78,8 +92,7 @@ public sealed class RaycastRenderer
 
         DrawFloor(player, horizon);
         DrawCeiling(player, horizon);
-        DrawWalls(player, horizon);
-        DrawDoors(player, horizon);
+        DrawWorld(player, horizon);
         DrawEnemies(player, horizon);
         DrawKeys(player, horizon);
         DrawCrosshair();
@@ -151,7 +164,7 @@ public sealed class RaycastRenderer
         }
     }
 
-    private void DrawWalls(PlayerController player, int horizon)
+    private void DrawWorld(PlayerController player, int horizon)
     {
         float halfFov = _fov * 0.5f;
         float projPlaneDist = (InternalWidth * 0.5f) / MathF.Tan(halfFov);
@@ -160,30 +173,54 @@ public sealed class RaycastRenderer
         {
             float cameraX = (2f * x / InternalWidth) - 1f;
             float rayAngle = player.Angle + cameraX * halfFov;
-            var hit = CastRay(player.Position, rayAngle);
-
-            float correctedDist = MathF.Max(hit.Distance * MathF.Cos(rayAngle - player.Angle), 0.0001f);
-            _depthBuffer[x] = correctedDist;
-
-            int sliceHeight = (int)((DungeonMap.TileSize / correctedDist) * projPlaneDist);
-            int drawTop = horizon - (sliceHeight / 2);
-            int drawBottom = drawTop + sliceHeight;
-
-            byte shade = ShadeByte(correctedDist, WallMinBrightness, 0.74f, AtmosphereDistanceScale * 0.85f);
-            if (hit.HitVertical) shade = (byte)(shade * 0.80f);
-            else shade = (byte)(shade * 0.90f);
-
-            int texX = Math.Clamp((int)hit.TextureX, 0, _wallWidth - 1);
-
-            for (int y = Math.Max(0, drawTop); y < Math.Min(InternalHeight, drawBottom); y++)
+            List<RayHit> hits = CastRay(player.Position, rayAngle);
+            if (hits.Count == 0)
             {
-                float t = (y - drawTop) / (float)Math.Max(sliceHeight, 1);
-                int texY = Math.Clamp((int)(t * _wallHeight), 0, _wallHeight - 1);
-                Color c = _wallPixels[(texY * _wallWidth) + texX];
-                _framebuffer[y * InternalWidth + x] = Modulate(c, shade);
+                _depthBuffer[x] = _maxRayDistance;
+                continue;
+            }
+
+            _depthBuffer[x] = _maxRayDistance;
+            foreach (RayHit hit in hits)
+            {
+                if (hit.BlocksView)
+                {
+                    _depthBuffer[x] = MathF.Max(hit.Distance * MathF.Cos(rayAngle - player.Angle), 0.0001f);
+                    break;
+                }
+            }
+
+            for (int i = hits.Count - 1; i >= 0; i--)
+            {
+                DrawWorldSlice(hits[i], rayAngle, player.Angle, horizon, projPlaneDist, x);
             }
         }
     }
+
+    private void DrawWorldSlice(RayHit hit, float rayAngle, float playerAngle, int horizon, float projPlaneDist, int screenX)
+    {
+        float correctedDist = MathF.Max(hit.Distance * MathF.Cos(rayAngle - playerAngle), 0.0001f);
+        int sliceHeight = (int)((DungeonMap.TileSize / correctedDist) * projPlaneDist);
+        int drawTop = horizon - (sliceHeight / 2);
+        int drawBottom = drawTop + sliceHeight;
+
+        float maxBrightness = hit.Type == RayHitType.Wall ? 0.74f : 0.80f;
+        float minBrightness = hit.Type == RayHitType.Wall ? WallMinBrightness : DoorMinBrightness;
+        float falloff = hit.Type == RayHitType.Wall ? AtmosphereDistanceScale * 0.85f : AtmosphereDistanceScale * 0.9f;
+        byte shade = ShadeByte(correctedDist, minBrightness, maxBrightness, falloff);
+        shade = hit.HitVertical ? (byte)(shade * 0.80f) : (byte)(shade * 0.90f);
+
+        int texX = Math.Clamp((int)hit.TextureX, 0, hit.Texture.Width - 1);
+        for (int y = Math.Max(0, drawTop); y < Math.Min(InternalHeight, drawBottom); y++)
+        {
+            float t = (y - drawTop) / (float)Math.Max(sliceHeight, 1);
+            int texY = Math.Clamp((int)(t * hit.Texture.Height), 0, hit.Texture.Height - 1);
+            Color c = hit.Texture.Pixels[(texY * hit.Texture.Width) + texX];
+            if (c.A < 10) continue;
+            _framebuffer[y * InternalWidth + screenX] = Modulate(c, shade);
+        }
+    }
+
 
     private void DrawEnemies(PlayerController player, int horizon)
     {
@@ -193,36 +230,25 @@ public sealed class RaycastRenderer
         Vector2 forward = new(MathF.Cos(player.Angle), MathF.Sin(player.Angle));
         Vector2 right = new(-forward.Y, forward.X);
 
-        // camera plane magnitude equals tan(halfFov)
         Vector2 plane = right * MathF.Tan(halfFov);
         invDet = 1f / ((plane.X * forward.Y) - (forward.X * plane.Y));
-
         float projPlaneDist = (InternalWidth * 0.5f) / MathF.Tan(halfFov);
 
         foreach (Enemy enemy in _map.Enemies.Where(e => e.IsAlive).OrderByDescending(e => e.DistanceToPlayer))
         {
             Vector2 rel = enemy.Position - player.Position;
-
             float transformX = invDet * ((forward.Y * rel.X) - (forward.X * rel.Y));
-            float transformY = invDet * ((-plane.Y * rel.X) + (plane.X * rel.Y)); // perpendicular depth
-
-            if (transformY <= 0.001f)
-            {
-                continue; // behind player
-            }
+            float transformY = invDet * ((-plane.Y * rel.X) + (plane.X * rel.Y));
+            if (transformY <= 0.001f) continue;
 
             float angleToEnemy = MathF.Atan2(rel.Y, rel.X) - player.Angle;
             angleToEnemy = MathF.Atan2(MathF.Sin(angleToEnemy), MathF.Cos(angleToEnemy));
-            if (MathF.Abs(angleToEnemy) > halfFov)
-            {
-                continue; // outside FOV
-            }
+            if (MathF.Abs(angleToEnemy) > halfFov) continue;
 
             int spriteScreenX = (int)((InternalWidth * 0.5f) * (1f + (transformX / transformY)));
             int spriteHeight = Math.Max(1, (int)(DungeonMap.TileSize * projPlaneDist / transformY * 0.50f));
             int spriteWidth = spriteHeight;
-
-            int drawBottom = horizon + spriteHeight; // floor-aligned anchor so feet sit on floor
+            int drawBottom = horizon + spriteHeight;
             int drawTop = drawBottom - spriteHeight;
             int drawLeft = spriteScreenX - (spriteWidth / 2);
             int drawRight = drawLeft + spriteWidth;
@@ -232,19 +258,14 @@ public sealed class RaycastRenderer
 
             for (int screenX = Math.Max(0, drawLeft); screenX < Math.Min(InternalWidth, drawRight); screenX++)
             {
-                if (transformY >= _depthBuffer[screenX])
-                {
-                    continue;
-                }
+                if (transformY >= _depthBuffer[screenX]) continue;
 
                 int texX = (int)((screenX - drawLeft) / (float)spriteWidth * sprite.Width);
                 texX = Math.Clamp(texX, 0, sprite.Width - 1);
 
                 for (int screenY = Math.Max(0, drawTop); screenY < Math.Min(InternalHeight, drawBottom); screenY++)
                 {
-                    int texY = (int)((screenY - drawTop) / (float)spriteHeight * sprite.Height);
-                    texY = Math.Clamp(texY, 0, sprite.Height - 1);
-
+                    int texY = Math.Clamp((int)((screenY - drawTop) / (float)spriteHeight * sprite.Height), 0, sprite.Height - 1);
                     Color texel = sprite.Pixels[(texY * sprite.Width) + texX];
                     if (texel.A < 10) continue;
 
@@ -256,40 +277,6 @@ public sealed class RaycastRenderer
 
                     _framebuffer[(screenY * InternalWidth) + screenX] = shaded;
                 }
-            }
-        }
-    }
-
-    private void DrawDoors(PlayerController player, int horizon)
-    {
-        float halfFov = _fov * 0.5f;
-        float projPlaneDist = (InternalWidth * 0.5f) / MathF.Tan(halfFov);
-
-        for (int x = 0; x < InternalWidth; x++)
-        {
-            float cameraX = (2f * x / InternalWidth) - 1f;
-            float rayAngle = player.Angle + cameraX * halfFov;
-            var hit = CastRay(player.Position, rayAngle, includeDoors: true);
-            if (!hit.HitDoor) continue;
-
-            float correctedDist = MathF.Max(hit.Distance * MathF.Cos(rayAngle - player.Angle), 0.0001f);
-            if (correctedDist >= _depthBuffer[x]) continue;
-            _depthBuffer[x] = correctedDist;
-
-            int sliceHeight = (int)((DungeonMap.TileSize / correctedDist) * projPlaneDist);
-            int drawTop = horizon - (sliceHeight / 2);
-            int drawBottom = drawTop + sliceHeight;
-            var doorSprite = GetSpritePixels(hit.IsLockedDoor ? _closedDoorTexture : _openDoorTexture);
-            int texX = Math.Clamp((int)hit.TextureX, 0, doorSprite.Width - 1);
-            byte shade = ShadeByte(correctedDist, DoorMinBrightness, 0.80f, AtmosphereDistanceScale * 0.9f);
-
-            for (int y = Math.Max(0, drawTop); y < Math.Min(InternalHeight, drawBottom); y++)
-            {
-                float t = (y - drawTop) / (float)Math.Max(sliceHeight, 1);
-                int texY = Math.Clamp((int)(t * doorSprite.Height), 0, doorSprite.Height - 1);
-                Color c = doorSprite.Pixels[(texY * doorSprite.Width) + texX];
-                if (c.A < 10) continue;
-                _framebuffer[y * InternalWidth + x] = Modulate(c, shade);
             }
         }
     }
@@ -361,8 +348,9 @@ public sealed class RaycastRenderer
         return cached;
     }
 
-    private (float Distance, float TextureX, bool HitVertical, bool HitDoor, bool IsLockedDoor) CastRay(Vector2 origin, float rayAngle, bool includeDoors = false)
+    private List<RayHit> CastRay(Vector2 origin, float rayAngle)
     {
+        List<RayHit> hits = [];
         Vector2 rayDir = new(MathF.Cos(rayAngle), MathF.Sin(rayAngle));
         int mapX = (int)(origin.X / DungeonMap.TileSize);
         int mapY = (int)(origin.Y / DungeonMap.TileSize);
@@ -383,8 +371,6 @@ public sealed class RaycastRenderer
 
         bool hitVertical = false;
         float distance = 0f;
-        bool hitDoor = false;
-        bool isLockedDoor = false;
 
         while (distance < _maxRayDistance)
         {
@@ -403,30 +389,33 @@ public sealed class RaycastRenderer
                 hitVertical = false;
             }
 
-            if (_map.IsWallAtGrid(mapX, mapY)) break;
-            if (includeDoors)
+            DoorEntity? door = _map.GetDoorAtGrid(mapX, mapY);
+            if (door is not null)
             {
-                DoorEntity? door = _map.GetDoorAtGrid(mapX, mapY);
+                bool isOpenDoor = door.State == DoorState.Open;
+                var doorTexture = GetSpritePixels(isOpenDoor ? _openDoorTexture : _closedDoorTexture);
+                hits.Add(CreateRayHit(RayHitType.Door, origin, rayDir, distance, hitVertical, !isOpenDoor, doorTexture));
+                if (!isOpenDoor) break;
+            }
 
-                if (door is not null)
-                {
-                    hitDoor = true;
-
-                    // Closed + locked use closed sprite
-                    // Open uses open sprite
-                    isLockedDoor = door.State != DoorState.Open;
-
-                    break;
-                }
+            if (_map.IsWallAtGrid(mapX, mapY))
+            {
+                var wallTexture = (_wallPixels, _wallWidth, _wallHeight);
+                hits.Add(CreateRayHit(RayHitType.Wall, origin, rayDir, distance, hitVertical, true, wallTexture));
+                break;
             }
         }
 
+        return hits;
+    }
+
+    private static RayHit CreateRayHit(RayHitType type, Vector2 origin, Vector2 rayDir, float distance, bool hitVertical, bool blocksView, (Color[] Pixels, int Width, int Height) texture)
+    {
         Vector2 hitPoint = origin + rayDir * distance;
         float textureCoord = hitVertical ? hitPoint.Y : hitPoint.X;
         float textureX = textureCoord % DungeonMap.TileSize;
         if (textureX < 0f) textureX += DungeonMap.TileSize;
-
-        return (distance, (textureX / DungeonMap.TileSize) * _wallWidth, hitVertical, hitDoor, isLockedDoor);
+        return new RayHit(type, distance, (textureX / DungeonMap.TileSize) * texture.Width, hitVertical, blocksView, texture);
     }
 
     private static Color Modulate(Color c, byte shade)
