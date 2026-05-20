@@ -18,13 +18,15 @@ public sealed class GameplayScreen : IDisposable
     }
 
     private readonly GameStateController _stateController;
-    private readonly DungeonMap _map;
-    private readonly PlayerController _player;
+    private DungeonMap _map;
+    private PlayerController _player;
     private readonly TextureManager _textures;
-    private readonly RaycastRenderer _renderer;
+    private RaycastRenderer _renderer;
     private readonly WeaponRenderer _weaponRenderer;
     private readonly AudioManager _audio;
-    private readonly DoorSystem _doorSystem;
+    private DoorSystem _doorSystem;
+    private readonly LayerManager _layerManager;
+    private readonly NodeManager _nodeManager;
     private string _doorPrompt = string.Empty;
     private bool _didHitDuringSwing;
     private float _attackCooldownTimer;
@@ -40,7 +42,10 @@ public sealed class GameplayScreen : IDisposable
     {
         _stateController = stateController;
         _textures = new TextureManager();
-        _map = new DungeonMap("Assets/Maps/test_map.json", _textures.GoblinTexture, _textures.SilverKeyTexture, _textures.GoldKeyTexture);
+        _layerManager = new LayerManager("Assets/Maps/layers/mid_hive_layer.json");
+        _nodeManager = new NodeManager(_layerManager, "hovel_01", _textures.GoblinTexture, _textures.SilverKeyTexture, _textures.GoldKeyTexture);
+
+        _map = _nodeManager.CurrentMap;
         _player = new PlayerController(_map);
         _renderer = new RaycastRenderer(_map, _textures.DungeonTexture, _textures.ClosedDoorTexture, _textures.OpenDoorTexture, _textures.SilverLockTexture, _textures.GoldLockTexture, _textures.TickLockTexture);
         _weaponRenderer = new WeaponRenderer(_textures.PlayerAnimationsTexture);
@@ -79,6 +84,7 @@ public sealed class GameplayScreen : IDisposable
             HandleMeleeCombat();
             HandleEnemyCombat();
             HandleProgression();
+            HandleNodeTransition();
             _doorSystem.Update(deltaTime, _player, _map.Enemies);
             _audio.Update(deltaTime, _player, _map.Enemies.OfType<GoblinEnemy>());
             _map.Enemies.RemoveAll(e => !e.IsAlive);
@@ -93,6 +99,40 @@ public sealed class GameplayScreen : IDisposable
             Raylib.EnableCursor();
             _stateController.ChangeState(GameState.PauseMenu);
         }
+    }
+
+
+    private void HandleNodeTransition()
+    {
+        if (!Raylib.IsKeyPressed(KeyboardKey.F)) return;
+
+        if (!_map.TryGetNodeConnectionAtWorld(_player.Position.X, _player.Position.Y, out NodeConnectionData? connection) || connection is null)
+        {
+            _statusText = "No node transition here";
+            _statusTextTimer = 0.9f;
+            return;
+        }
+
+        if (!_nodeManager.TryTransition(connection.Target, out DungeonMap transitionedMap))
+        {
+            _statusText = $"Missing node: {connection.Target}";
+            _statusTextTimer = 1.2f;
+            return;
+        }
+
+        bool hadSilverKey = _player.HasSilverKey;
+        bool hadGoldKey = _player.HasGoldKey;
+        _map = transitionedMap;
+        _player = new PlayerController(_map)
+        {
+            HasSilverKey = hadSilverKey,
+            HasGoldKey = hadGoldKey
+        };
+        _renderer = new RaycastRenderer(_map, _textures.DungeonTexture, _textures.ClosedDoorTexture, _textures.OpenDoorTexture, _textures.SilverLockTexture, _textures.GoldLockTexture, _textures.TickLockTexture);
+        _doorSystem = new DoorSystem(_map);
+
+        _statusText = $"Entered node: {_nodeManager.CurrentNodeId}";
+        _statusTextTimer = 1.0f;
     }
 
     private void HandleProgression()

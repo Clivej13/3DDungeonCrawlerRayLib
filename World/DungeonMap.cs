@@ -17,6 +17,7 @@ public sealed class DungeonMap
     public List<KeyItem> Keys { get; } = [];
     public List<DoorEntity> Doors { get; } = [];
     public ExitData? Exit { get; }
+    public List<NodeConnectionData> NodeConnections { get; } = [];
 
     public DungeonMap(string mapPath, Texture2D goblinTexture, Texture2D silverKeyTexture, Texture2D goldKeyTexture)
     {
@@ -26,54 +27,77 @@ public sealed class DungeonMap
         PlayerSpawnAngle = data.PlayerSpawn.Angle;
         Enemies = MapLoader.BuildEnemies(data.Enemies, goblinTexture);
         Exit = data.Exit;
+        BuildProgressionData(data.Keys, data.Doors, silverKeyTexture, goldKeyTexture);
+    }
 
-        foreach (KeySpawnData spawn in data.Keys)
+    private DungeonMap(NodeData data, Texture2D goblinTexture, Texture2D silverKeyTexture, Texture2D goldKeyTexture)
+    {
+        _grid = MapLoader.BuildGrid(data.Tiles);
+        float spawnX = TileSize * 1.5f;
+        float spawnY = TileSize * 1.5f;
+        float spawnAngle = 0f;
+        if (data.PlayerSpawn is not null)
         {
-            if (!MapLoader.TryParseKeyType(spawn.Type, out KeyType keyType))
-            {
-                Console.WriteLine($"[MapValidation] Unknown key type '{spawn.Type}'. Skipped.");
-                continue;
-            }
+            spawnX = data.PlayerSpawn.X;
+            spawnY = data.PlayerSpawn.Y;
+            spawnAngle = data.PlayerSpawn.Angle;
+        }
 
-            if (!MapLoader.IsWalkableSpawn(_grid, TileSize, spawn.X, spawn.Y))
-            {
-                Console.WriteLine($"[MapValidation] Key {keyType} at ({spawn.X},{spawn.Y}) is inside wall/out of bounds. Skipped.");
-                continue;
-            }
+        PlayerSpawn = new Vector2(spawnX, spawnY);
+        PlayerSpawnAngle = spawnAngle;
+        Enemies = [];
+        Exit = null;
+        NodeConnections = data.Connections;
 
+        BuildNodeObjects(data.Objects, goblinTexture, silverKeyTexture, goldKeyTexture);
+    }
+
+    public static DungeonMap FromNode(NodeData data, Texture2D goblinTexture, Texture2D silverKeyTexture, Texture2D goldKeyTexture)
+        => new(data, goblinTexture, silverKeyTexture, goldKeyTexture);
+
+    private void BuildProgressionData(IEnumerable<KeySpawnData> keySpawns, IEnumerable<DoorSpawnData> doorSpawns, Texture2D silverKeyTexture, Texture2D goldKeyTexture)
+    {
+        foreach (KeySpawnData spawn in keySpawns)
+        {
+            if (!MapLoader.TryParseKeyType(spawn.Type, out KeyType keyType)) continue;
+            if (!MapLoader.IsWalkableSpawn(_grid, TileSize, spawn.X, spawn.Y)) continue;
             Keys.Add(new KeyItem(new Vector2(spawn.X, spawn.Y), keyType, keyType == KeyType.Silver ? silverKeyTexture : goldKeyTexture));
         }
 
-        foreach (DoorSpawnData spawn in data.Doors)
+        foreach (DoorSpawnData spawn in doorSpawns)
         {
-            if (!MapLoader.TryParseKeyType(spawn.Type, out KeyType keyType))
-            {
-                Console.WriteLine($"[MapValidation] Unknown door type '{spawn.Type}'. Skipped.");
-                continue;
-            }
-
-            if (!MapLoader.IsWalkableSpawn(_grid, TileSize, spawn.X, spawn.Y))
-            {
-                Console.WriteLine($"[MapValidation] Door {keyType} at ({spawn.X},{spawn.Y}) is inside wall/out of bounds. Skipped.");
-                continue;
-            }
-
+            if (!MapLoader.TryParseKeyType(spawn.Type, out KeyType keyType)) continue;
+            if (!MapLoader.IsWalkableSpawn(_grid, TileSize, spawn.X, spawn.Y)) continue;
             Doors.Add(new DoorEntity(new Vector2(spawn.X, spawn.Y), keyType, spawn.Locked));
         }
+    }
 
-        if (Exit is not null && !MapLoader.IsWalkableSpawn(_grid, TileSize, Exit.X, Exit.Y))
+    private void BuildNodeObjects(IEnumerable<NodeObjectData> objects, Texture2D goblinTexture, Texture2D silverKeyTexture, Texture2D goldKeyTexture)
+    {
+        foreach (NodeObjectData obj in objects)
         {
-            Console.WriteLine($"[MapValidation] Exit at ({Exit.X},{Exit.Y}) is inside wall/out of bounds.");
+            if (obj.Type.Equals("goblin", StringComparison.OrdinalIgnoreCase))
+            {
+                Enemies.Add(new GoblinEnemy(new Vector2(obj.X, obj.Y), goblinTexture));
+            }
+            else if (MapLoader.TryParseKeyType(obj.Type, out KeyType keyType))
+            {
+                Keys.Add(new KeyItem(new Vector2(obj.X, obj.Y), keyType, keyType == KeyType.Silver ? silverKeyTexture : goldKeyTexture));
+            }
         }
+    }
+
+    public bool TryGetNodeConnectionAtWorld(float worldX, float worldY, out NodeConnectionData? connection)
+    {
+        int gx = (int)(worldX / TileSize);
+        int gy = (int)(worldY / TileSize);
+        connection = NodeConnections.FirstOrDefault(c => c.TileX == gx && c.TileY == gy);
+        return connection is not null;
     }
 
     public bool IsWallAtGrid(int gx, int gy)
     {
-        if (gx < 0 || gy < 0 || gx >= Width || gy >= Height)
-        {
-            return true;
-        }
-
+        if (gx < 0 || gy < 0 || gx >= Width || gy >= Height) return true;
         return _grid[gy, gx] == 1;
     }
 
@@ -84,23 +108,16 @@ public sealed class DungeonMap
         return IsWallAtGrid(gx, gy);
     }
 
-
     public DoorEntity? GetDoorAtGrid(int gx, int gy)
-    {
-        return Doors.FirstOrDefault(d => (int)(d.Position.X / TileSize) == gx && (int)(d.Position.Y / TileSize) == gy);
-    }
+        => Doors.FirstOrDefault(d => (int)(d.Position.X / TileSize) == gx && (int)(d.Position.Y / TileSize) == gy);
 
     public bool IsBlockedAtWorld(float worldX, float worldY)
     {
         if (IsWallAtWorld(worldX, worldY)) return true;
-
         const float doorRadius = 16f;
         foreach (DoorEntity door in Doors.Where(d => d.BlocksMovement))
         {
-            if (Vector2.DistanceSquared(new Vector2(worldX, worldY), door.Position) <= doorRadius * doorRadius)
-            {
-                return true;
-            }
+            if (Vector2.DistanceSquared(new Vector2(worldX, worldY), door.Position) <= doorRadius * doorRadius) return true;
         }
 
         return false;

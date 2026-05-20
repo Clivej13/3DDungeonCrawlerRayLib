@@ -60,6 +60,28 @@ public static class MapLoader
         return grid;
     }
 
+
+    public static int[,] BuildGrid(int[][] rows)
+    {
+        int height = rows.Length;
+        int width = rows[0].Length;
+        var grid = new int[height, width];
+
+        for (int y = 0; y < height; y++)
+        {
+            if (rows[y].Length != width)
+            {
+                throw new InvalidOperationException("Map rows must have equal width.");
+            }
+
+            for (int x = 0; x < width; x++)
+            {
+                grid[y, x] = rows[y][x];
+            }
+        }
+
+        return grid;
+    }
     public static List<Enemy> BuildEnemies(IEnumerable<EnemySpawnData> spawns, Texture2D goblinTexture)
     {
         List<Enemy> enemies = [];
