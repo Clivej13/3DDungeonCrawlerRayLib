@@ -94,10 +94,10 @@ public sealed class DungeonMap
     {
         if (IsWallAtWorld(worldX, worldY)) return true;
 
-        const float doorRadius = 16f;
+        const float closedDoorCollisionRadius = TileSize * 0.46f;
         foreach (DoorEntity door in Doors.Where(d => d.BlocksMovement))
         {
-            if (Vector2.DistanceSquared(new Vector2(worldX, worldY), door.Position) <= doorRadius * doorRadius)
+            if (Vector2.DistanceSquared(new Vector2(worldX, worldY), door.Position) <= closedDoorCollisionRadius * closedDoorCollisionRadius)
             {
                 return true;
             }
