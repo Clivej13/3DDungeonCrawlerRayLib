@@ -406,8 +406,8 @@ public sealed class RaycastRenderer
             if (_map.IsWallAtGrid(mapX, mapY)) break;
             if (includeDoors)
             {
-                DoorEntity? door = _map.Doors.FirstOrDefault(d => (int)(d.Position.X / DungeonMap.TileSize) == mapX && (int)(d.Position.Y / DungeonMap.TileSize) == mapY);
-                if (door is not null)
+                DoorEntity? door = _map.GetDoorAtGrid(mapX, mapY);
+                if (door is not null && door.BlocksRaycast)
                 {
                     hitDoor = true;
                     isLockedDoor = door.IsLocked;
@@ -558,7 +558,7 @@ public sealed class RaycastRenderer
 
         foreach (DoorEntity door in _map.Doors)
         {
-            if (!door.IsLocked) continue; // opened doors render nothing on minimap
+            if (!door.IsLocked) continue; // only locked doors render as lock icons on minimap
             Vector2 pos = WorldToMinimap(door.Position, player.Position, minimapCenter, pixelsPerWorldUnit);
             if (!IsMinimapPointVisible(pos, minimapBounds, 10f)) continue;
 
