@@ -20,10 +20,10 @@ public sealed class DungeonMap
 
     public DungeonMap(string mapPath, Texture2D goblinTexture, Texture2D silverKeyTexture, Texture2D goldKeyTexture)
     {
-        DungeonMapData data = MapLoader.LoadData(mapPath);
-        _grid = MapLoader.BuildGrid(data.Rows);
-        PlayerSpawn = new Vector2(data.PlayerSpawn.X, data.PlayerSpawn.Y);
-        PlayerSpawnAngle = data.PlayerSpawn.Angle;
+        ImageMapData data = ImageMapLoader.Load(mapPath, TileSize);
+        _grid = data.Grid;
+        PlayerSpawn = data.PlayerSpawn;
+        PlayerSpawnAngle = 0f;
         Enemies = MapLoader.BuildEnemies(data.Enemies, goblinTexture);
         Exit = data.Exit;
 
