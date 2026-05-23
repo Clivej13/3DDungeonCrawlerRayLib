@@ -19,14 +19,14 @@ public sealed class DoorSystem
     private readonly float _interactionRange;
     private readonly float _autoCloseDelay;
 
-    public DoorSystem(DungeonMap map, float interactionRange = 54f, float autoCloseDelay = 1.2f)
+    public DoorSystem(DungeonMap map, float interactionRange = 96f, float autoCloseDelay = 1.2f)
     {
         _map = map;
         _interactionRange = interactionRange;
         _autoCloseDelay = autoCloseDelay;
     }
 
-    public DoorEntity? GetTargetedDoor(PlayerController player, float aimDotThreshold = 0.86f)
+    public DoorEntity? GetTargetedDoor(PlayerController player, float aimDotThreshold = 0.73f)
     {
         Vector2 forward = new(MathF.Cos(player.Angle), MathF.Sin(player.Angle));
         DoorEntity? bestDoor = null;
