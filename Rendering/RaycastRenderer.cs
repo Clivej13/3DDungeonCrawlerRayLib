@@ -559,7 +559,7 @@ public sealed class RaycastRenderer
         {
             Vector2 pos = WorldToMinimap(door.Position, player.Position, minimapCenter, pixelsPerWorldUnit);
             if (!IsMinimapPointVisible(pos, minimapBounds, 10f)) continue;
-            DrawDoorMarker(door, pos);
+            DrawDoorMarker(door, player, pos);
         }
 
         Vector2 playerMinimapPos = WorldToMinimap(player.Position, player.Position, minimapCenter, pixelsPerWorldUnit);
@@ -576,15 +576,9 @@ public sealed class RaycastRenderer
         Raylib.DrawTriangle(tip, left, rightPoint, new Color(64, 196, 255, 255));
     }
 
-    private void DrawDoorMarker(DoorEntity door, Vector2 minimapPosition)
+    private void DrawDoorMarker(DoorEntity door, PlayerController player, Vector2 minimapPosition)
     {
-        if (door.State == DoorState.Open)
-        {
-            DrawOpenDoorMarker(minimapPosition);
-            return;
-        }
-
-        if (door.IsLocked)
+        if (!player.HasKey(door.RequiredKeyId))
         {
             DrawLockedDoorMarker(minimapPosition);
             return;
@@ -600,12 +594,6 @@ public sealed class RaycastRenderer
     {
         DrawLockIcon(minimapPosition);
         DrawTickOverlay(minimapPosition);
-    }
-
-    private static void DrawOpenDoorMarker(Vector2 minimapPosition)
-    {
-        // Intentionally no lock/tick icon for open doors so passage appears open.
-        _ = minimapPosition;
     }
 
     private void DrawTickOverlay(Vector2 minimapPosition)
