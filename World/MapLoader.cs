@@ -5,6 +5,11 @@ namespace DungeonCrawler.World;
 
 public static class MapLoader
 {
+    public static float TileToWorld(int tileCoordinate, int tileSize)
+        => tileCoordinate * tileSize + tileSize / 2f;
+
+    public static System.Numerics.Vector2 ToWorldPosition(int tileX, int tileY, int tileSize)
+        => new(TileToWorld(tileX, tileSize), TileToWorld(tileY, tileSize));
     public static bool TryParseKeyType(string value, out KeyType keyType)
     {
         if (value.Equals("silver", StringComparison.OrdinalIgnoreCase))

@@ -1,0 +1,17 @@
+{
+  "mapImage": "Assets/Maps/level1.png",
+  "enemies": [
+    { "type": "goblin", "tileX": 4, "tileY": 3 },
+    { "type": "goblin", "tileX": 5, "tileY": 5 },
+    { "type": "goblin", "tileX": 10, "tileY": 5 },
+    { "type": "goblin", "tileX": 12, "tileY": 11 }
+  ],
+  "keys": [
+    { "id": "silver_key", "tileX": 3, "tileY": 5 },
+    { "id": "gold_key", "tileX": 12, "tileY": 9 }
+  ],
+  "doors": [
+    { "id": "silver_door", "tileX": 9, "tileY": 5, "requiredKeyId": "silver_key" },
+    { "id": "gold_door", "tileX": 10, "tileY": 13, "requiredKeyId": "gold_key" }
+  ]
+}

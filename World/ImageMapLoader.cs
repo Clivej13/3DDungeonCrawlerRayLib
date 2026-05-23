@@ -1,4 +1,3 @@
-using DungeonCrawler.Entities;
 using Raylib_cs;
 using System.Numerics;
 
@@ -9,21 +8,13 @@ public enum MapPixelType
     Floor,
     Wall,
     PlayerSpawn,
-    Exit,
-    Goblin,
-    GoldKey,
-    SilverKey,
-    GoldDoor,
-    SilverDoor
+    Exit
 }
 
 public sealed class ImageMapData
 {
     public required int[,] Grid { get; init; }
     public required Vector2 PlayerSpawn { get; init; }
-    public required List<EnemySpawnData> Enemies { get; init; }
-    public required List<KeySpawnData> Keys { get; init; }
-    public required List<DoorSpawnData> Doors { get; init; }
     public ExitData? Exit { get; init; }
 }
 
@@ -34,6 +25,11 @@ public static class ImageMapLoader
 
     public static unsafe ImageMapData Load(string mapPath, int tileSize)
     {
+        if (!File.Exists(mapPath))
+        {
+            throw new FileNotFoundException($"[MapValidation] PNG map file not found: '{mapPath}'.", mapPath);
+        }
+
         Image image = Raylib.LoadImage(mapPath);
 
         try
@@ -58,10 +54,6 @@ public static class ImageMapLoader
     private static unsafe ImageMapData ParsePixels(Color* pixels, int width, int height, int tileSize)
     {
         int[,] grid = new int[height, width];
-        List<EnemySpawnData> enemies = [];
-        List<KeySpawnData> keys = [];
-        List<DoorSpawnData> doors = [];
-
         Vector2? playerSpawn = null;
         ExitData? exit = null;
 
@@ -71,7 +63,7 @@ public static class ImageMapLoader
             {
                 Color pixel = pixels[y * width + x];
                 MapPixelType pixelType = ResolvePixelType(pixel);
-                Vector2 world = ToWorldPosition(x, y, tileSize);
+                Vector2 world = MapLoader.ToWorldPosition(x, y, tileSize);
 
                 switch (pixelType)
                 {
@@ -84,49 +76,21 @@ public static class ImageMapLoader
                     case MapPixelType.Exit:
                         exit = new ExitData { X = world.X, Y = world.Y, RequiresAllKeys = true };
                         break;
-                    case MapPixelType.Goblin:
-                        enemies.Add(new EnemySpawnData { Type = "goblin", X = world.X, Y = world.Y });
-                        break;
-                    case MapPixelType.GoldKey:
-                        keys.Add(new KeySpawnData { Type = "gold", X = world.X, Y = world.Y });
-                        break;
-                    case MapPixelType.SilverKey:
-                        keys.Add(new KeySpawnData { Type = "silver", X = world.X, Y = world.Y });
-                        break;
-                    case MapPixelType.GoldDoor:
-                        doors.Add(new DoorSpawnData { Type = "gold", X = world.X, Y = world.Y, Locked = true });
-                        break;
-                    case MapPixelType.SilverDoor:
-                        doors.Add(new DoorSpawnData { Type = "silver", X = world.X, Y = world.Y, Locked = true });
-                        break;
-                    case MapPixelType.Floor:
-                    default:
-                        break;
                 }
             }
         }
 
         if (playerSpawn is null)
         {
-            throw new InvalidOperationException("Map is missing a player spawn (red pixel).");
+            throw new InvalidOperationException("[MapValidation] Map is missing a player spawn (red pixel #FF0000).");
         }
 
         return new ImageMapData
         {
             Grid = grid,
             PlayerSpawn = playerSpawn.Value,
-            Enemies = enemies,
-            Keys = keys,
-            Doors = doors,
             Exit = exit
         };
-    }
-
-    private static Vector2 ToWorldPosition(int x, int y, int tileSize)
-    {
-        float worldX = x * tileSize + tileSize / 2f;
-        float worldY = y * tileSize + tileSize / 2f;
-        return new Vector2(worldX, worldY);
     }
 
     private static MapPixelType ResolvePixelType(Color pixel)
@@ -135,11 +99,6 @@ public static class ImageMapLoader
         if (ColorsEqual(pixel, MapColors.Floor)) return MapPixelType.Floor;
         if (ColorsEqual(pixel, MapColors.PlayerSpawn)) return MapPixelType.PlayerSpawn;
         if (ColorsEqual(pixel, MapColors.Exit)) return MapPixelType.Exit;
-        if (ColorsEqual(pixel, MapColors.Goblin)) return MapPixelType.Goblin;
-        if (ColorsEqual(pixel, MapColors.GoldKey)) return MapPixelType.GoldKey;
-        if (ColorsEqual(pixel, MapColors.SilverKey)) return MapPixelType.SilverKey;
-        if (ColorsEqual(pixel, MapColors.GoldDoor)) return MapPixelType.GoldDoor;
-        if (ColorsEqual(pixel, MapColors.SilverDoor)) return MapPixelType.SilverDoor;
 
         return MapPixelType.Floor;
     }
