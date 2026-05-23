@@ -71,10 +71,10 @@ public sealed class DoorSystem
 
         if (door.State == DoorState.Locked)
         {
-            bool hasKey = door.Type == KeyType.Silver ? player.HasSilverKey : player.HasGoldKey;
+            bool hasKey = player.HasKey(door.RequiredKeyId);
             if (!hasKey)
             {
-                status = door.Type == KeyType.Silver ? "Need Silver Key" : "Need Gold Key";
+                status = $"Need key: {door.RequiredKeyId}";
                 return false;
             }
 

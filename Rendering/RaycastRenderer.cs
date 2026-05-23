@@ -45,19 +45,15 @@ public sealed class RaycastRenderer
     private readonly int _wallHeight;
     private readonly Texture2D _closedDoorTexture;
     private readonly Texture2D _openDoorTexture;
-    private readonly Texture2D _silverLockTexture;
-    private readonly Texture2D _goldLockTexture;
-    private readonly Texture2D _tickLockTexture;
+    private readonly Texture2D _minimapKeyTexture;
 
-    public RaycastRenderer(DungeonMap map, Texture2D wallTexture, Texture2D closedDoorTexture, Texture2D openDoorTexture, Texture2D silverLockTexture, Texture2D goldLockTexture, Texture2D tickLockTexture)
+    public RaycastRenderer(DungeonMap map, Texture2D wallTexture, Texture2D closedDoorTexture, Texture2D openDoorTexture)
     {
         _map = map;
         _wallTexture = wallTexture;
         _closedDoorTexture = closedDoorTexture;
         _openDoorTexture = openDoorTexture;
-        _silverLockTexture = silverLockTexture;
-        _goldLockTexture = goldLockTexture;
-        _tickLockTexture = tickLockTexture;
+        _minimapKeyTexture = _map.Keys.FirstOrDefault()?.Texture ?? openDoorTexture;
 
         _framebuffer = new Color[InternalWidth * InternalHeight];
         _depthBuffer = new float[InternalWidth];
@@ -544,27 +540,17 @@ public sealed class RaycastRenderer
         {
             Vector2 pos = WorldToMinimap(key.Position, player.Position, minimapCenter, pixelsPerWorldUnit);
             if (!IsMinimapPointVisible(pos, minimapBounds, 8f)) continue;
-            Texture2D keyIcon = key.Type == KeyType.Silver ? GetMinimapKeyTexture(KeyType.Silver) : GetMinimapKeyTexture(KeyType.Gold);
             const int keyIconSize = 12;
             Rectangle dst = new(pos.X - (keyIconSize / 2), pos.Y - (keyIconSize / 2), keyIconSize, keyIconSize);
-            Raylib.DrawTexturePro(keyIcon, new Rectangle(0, 0, keyIcon.Width, keyIcon.Height), dst, Vector2.Zero, 0f, Color.White);
+            Raylib.DrawTexturePro(_minimapKeyTexture, new Rectangle(0, 0, _minimapKeyTexture.Width, _minimapKeyTexture.Height), dst, Vector2.Zero, 0f, Color.Gold);
         }
 
         foreach (DoorEntity door in _map.Doors)
         {
-            if (!door.IsLocked) continue; // only locked doors render as lock icons on minimap
             Vector2 pos = WorldToMinimap(door.Position, player.Position, minimapCenter, pixelsPerWorldUnit);
             if (!IsMinimapPointVisible(pos, minimapBounds, 10f)) continue;
-
-            Texture2D lockIcon = door.Type == KeyType.Silver ? _silverLockTexture : _goldLockTexture;
-            Rectangle dst = new(pos.X - 8, pos.Y - 8, 16, 16);
-            Raylib.DrawTexturePro(lockIcon, new Rectangle(0, 0, lockIcon.Width, lockIcon.Height), dst, Vector2.Zero, 0f, Color.White);
-
-            bool hasRequiredKey = door.Type == KeyType.Silver ? player.HasSilverKey : player.HasGoldKey;
-            if (hasRequiredKey)
-            {
-                Raylib.DrawTexturePro(_tickLockTexture, new Rectangle(0, 0, _tickLockTexture.Width, _tickLockTexture.Height), dst, Vector2.Zero, 0f, Color.White);
-            }
+            Color doorColor = door.State == DoorState.Open ? new Color(76, 218, 120, 240) : door.IsLocked ? new Color(229, 72, 72, 240) : new Color(255, 194, 76, 240);
+            Raylib.DrawRectangle((int)pos.X - 6, (int)pos.Y - 3, 12, 6, doorColor);
         }
 
         Vector2 playerMinimapPos = WorldToMinimap(player.Position, player.Position, minimapCenter, pixelsPerWorldUnit);
@@ -581,9 +567,4 @@ public sealed class RaycastRenderer
         Raylib.DrawTriangle(tip, left, rightPoint, new Color(64, 196, 255, 255));
     }
 
-    private Texture2D GetMinimapKeyTexture(KeyType keyType)
-    {
-        KeyItem? key = _map.Keys.FirstOrDefault(k => k.Type == keyType);
-        return key?.Texture ?? (keyType == KeyType.Silver ? _silverLockTexture : _goldLockTexture);
-    }
 }
