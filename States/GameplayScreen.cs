@@ -40,9 +40,15 @@ public sealed class GameplayScreen : IDisposable
     {
         _stateController = stateController;
         _textures = new TextureManager();
-        _map = new DungeonMap("Assets/Maps/level1.json", _textures.GoblinTexture, _textures.SilverKeyTexture, _textures.GoldKeyTexture);
+        _map = new DungeonMap("Assets/Maps/level1.json", _textures.GoblinTexture, _textures.KeyTexture);
         _player = new PlayerController(_map);
-        _renderer = new RaycastRenderer(_map, _textures.DungeonTexture, _textures.ClosedDoorTexture, _textures.OpenDoorTexture, _textures.SilverLockTexture, _textures.GoldLockTexture, _textures.TickLockTexture);
+        _renderer = new RaycastRenderer(
+            _map,
+            _textures.DungeonTexture,
+            _textures.ClosedDoorTexture,
+            _textures.OpenDoorTexture,
+            _textures.MinimapLockTexture,
+            _textures.MinimapTickTexture);
         _weaponRenderer = new WeaponRenderer(_textures.PlayerAnimationsTexture);
         _audio = new AudioManager();
         _doorSystem = new DoorSystem(_map);
@@ -102,17 +108,16 @@ public sealed class GameplayScreen : IDisposable
             if (Vector2.DistanceSquared(_player.Position, key.Position) > 22f * 22f) continue;
 
             key.Collect();
-            if (key.Type == KeyType.Silver) _player.HasSilverKey = true;
-            if (key.Type == KeyType.Gold) _player.HasGoldKey = true;
+            _player.AddKey(key.Id);
             Raylib.PlaySound(_audio.KeyPickupSound);
-            Console.WriteLine($"[Progression] Picked up {key.Type} key.");
+            Console.WriteLine($"[Progression] Picked up key '{key.Id}'.");
         }
 
         _doorPrompt = string.Empty;
         DoorEntity? targetedDoor = _doorSystem.GetTargetedDoor(_player);
         if (targetedDoor is not null)
         {
-            bool hasKey = targetedDoor.Type == KeyType.Silver ? _player.HasSilverKey : _player.HasGoldKey;
+            bool hasKey = _player.HasKey(targetedDoor.RequiredKeyId);
             _doorPrompt = targetedDoor.State switch
             {
                 DoorState.Closed => "Press E to Open Door",
@@ -243,8 +248,8 @@ public sealed class GameplayScreen : IDisposable
         Raylib.DrawRectangleLines(hudPanelX, hudPanelY, hudPanelW, hudPanelH, new Color(120, 128, 144, 220));
 
         Raylib.DrawText($"HP: {_player.Health:0}", hudPanelX + 12, hudPanelY + 10, 24, _player.Health > 25 ? Color.Lime : Color.Red);
-        Raylib.DrawText($"Silver Key: {(_player.HasSilverKey ? "Yes" : "No")}", hudPanelX + 12, hudPanelY + 42, 20, _player.HasSilverKey ? Color.SkyBlue : Color.Gray);
-        Raylib.DrawText($"Gold Key: {(_player.HasGoldKey ? "Yes" : "No")}", hudPanelX + 12, hudPanelY + 66, 20, _player.HasGoldKey ? Color.Gold : Color.Gray);
+        Raylib.DrawText($"Keys Collected: {_player.CollectedKeyIds.Count}", hudPanelX + 12, hudPanelY + 42, 20, _player.CollectedKeyIds.Count > 0 ? Color.Gold : Color.Gray);
+        Raylib.DrawText($"Remaining Keys: {_map.Keys.Count(k => !k.IsCollected)}", hudPanelX + 12, hudPanelY + 66, 20, Color.LightGray);
         Raylib.DrawText("WASD Move | Mouse Look | ESC Pause", hudPanelX + 12, hudPanelY + 92, 18, Color.LightGray);
         Raylib.DrawText($"POS {_player.Position.X:0.0},{_player.Position.Y:0.0}  ANG {_player.Angle:0.00}  PITCH {_player.PitchOffset:0}",
             hudPanelX + 12, hudPanelY + 114, 16, new Color(190, 190, 190, 220));

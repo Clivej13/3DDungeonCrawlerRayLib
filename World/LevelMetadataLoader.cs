@@ -47,31 +47,19 @@ public static class LevelMetadataLoader
             }).ToList(),
             Keys = (dto.Keys ?? []).Select(k => new KeySpawnData
             {
-                Type = InferKeyTypeFromId(k.Id),
+                Id = k.Id,
                 X = MapLoader.TileToWorld(k.TileX, tileSize),
                 Y = MapLoader.TileToWorld(k.TileY, tileSize)
             }).ToList(),
             Doors = (dto.Doors ?? []).Select(d => new DoorSpawnData
             {
-                Type = InferDoorTypeFromIds(d.Id, d.RequiredKeyId),
+                Id = d.Id,
+                RequiredKeyId = d.RequiredKeyId,
                 X = MapLoader.TileToWorld(d.TileX, tileSize),
                 Y = MapLoader.TileToWorld(d.TileY, tileSize),
                 Locked = true
             }).ToList()
         };
-    }
-
-    private static string InferKeyTypeFromId(string id)
-        => id.Contains("gold", StringComparison.OrdinalIgnoreCase) ? "gold" : "silver";
-
-    private static string InferDoorTypeFromIds(string id, string requiredKeyId)
-    {
-        if (requiredKeyId.Contains("gold", StringComparison.OrdinalIgnoreCase) || id.Contains("gold", StringComparison.OrdinalIgnoreCase))
-        {
-            return "gold";
-        }
-
-        return "silver";
     }
 
     private sealed class LevelMetadataDto
