@@ -18,16 +18,18 @@ public sealed class DungeonMap
     public List<DoorEntity> Doors { get; } = [];
     public ExitData? Exit { get; }
 
-    public DungeonMap(string mapPath, Texture2D goblinTexture, Texture2D silverKeyTexture, Texture2D goldKeyTexture)
+    public DungeonMap(string levelMetadataPath, Texture2D goblinTexture, Texture2D silverKeyTexture, Texture2D goldKeyTexture)
     {
-        ImageMapData data = ImageMapLoader.Load(mapPath, TileSize);
-        _grid = data.Grid;
-        PlayerSpawn = data.PlayerSpawn;
-        PlayerSpawnAngle = 0f;
-        Enemies = MapLoader.BuildEnemies(data.Enemies, goblinTexture);
-        Exit = data.Exit;
+        LevelMetadata metadata = LevelMetadataLoader.Load(levelMetadataPath, TileSize);
+        ImageMapData geometry = ImageMapLoader.Load(metadata.MapImage, TileSize);
 
-        foreach (KeySpawnData spawn in data.Keys)
+        _grid = geometry.Grid;
+        PlayerSpawn = geometry.PlayerSpawn;
+        PlayerSpawnAngle = 0f;
+        Enemies = MapLoader.BuildEnemies(metadata.Enemies, goblinTexture);
+        Exit = geometry.Exit;
+
+        foreach (KeySpawnData spawn in metadata.Keys)
         {
             if (!MapLoader.TryParseKeyType(spawn.Type, out KeyType keyType))
             {
@@ -44,7 +46,7 @@ public sealed class DungeonMap
             Keys.Add(new KeyItem(new Vector2(spawn.X, spawn.Y), keyType, keyType == KeyType.Silver ? silverKeyTexture : goldKeyTexture));
         }
 
-        foreach (DoorSpawnData spawn in data.Doors)
+        foreach (DoorSpawnData spawn in metadata.Doors)
         {
             if (!MapLoader.TryParseKeyType(spawn.Type, out KeyType keyType))
             {
@@ -61,7 +63,11 @@ public sealed class DungeonMap
             Doors.Add(new DoorEntity(new Vector2(spawn.X, spawn.Y), keyType, spawn.Locked));
         }
 
-        if (Exit is not null && !MapLoader.IsWalkableSpawn(_grid, TileSize, Exit.X, Exit.Y))
+        if (Exit is null)
+        {
+            Console.WriteLine("[MapValidation] Map has no exit marker (green pixel #00FF00).");
+        }
+        else if (!MapLoader.IsWalkableSpawn(_grid, TileSize, Exit.X, Exit.Y))
         {
             Console.WriteLine($"[MapValidation] Exit at ({Exit.X},{Exit.Y}) is inside wall/out of bounds.");
         }
