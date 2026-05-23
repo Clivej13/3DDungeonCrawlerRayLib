@@ -15,15 +15,16 @@ public enum DoorState
 
 public sealed class DoorSystem
 {
+    private const float DoorCloseSafeDistanceMultiplier = 1.25f;
     private readonly DungeonMap _map;
     private readonly float _interactionRange;
-    private readonly float _autoCloseDelay;
+    private readonly float _doorCloseSafeDistance;
 
-    public DoorSystem(DungeonMap map, float interactionRange = 96f, float autoCloseDelay = 1.2f)
+    public DoorSystem(DungeonMap map, float interactionRange = 96f)
     {
         _map = map;
         _interactionRange = interactionRange;
-        _autoCloseDelay = autoCloseDelay;
+        _doorCloseSafeDistance = DungeonMap.TileSize * DoorCloseSafeDistanceMultiplier;
     }
 
     public DoorEntity? GetTargetedDoor(PlayerController player, float aimDotThreshold = 0.73f)
@@ -54,12 +55,12 @@ public sealed class DoorSystem
 
     public void Update(float dt, PlayerController player, IReadOnlyCollection<Enemy> enemies)
     {
+        _ = dt;
+        _ = enemies;
         foreach (DoorEntity door in _map.Doors)
         {
-            door.Tick(dt);
             if (door.State != DoorState.Open) continue;
-            if (door.TimeSinceOpened < _autoCloseDelay) continue;
-            if (IsDoorwayBlocked(door, player, enemies)) continue;
+            if (!CanDoorClose(door, player.Position)) continue;
             door.StartClosing();
         }
     }
@@ -91,12 +92,9 @@ public sealed class DoorSystem
         return false;
     }
 
-    private static bool IsDoorwayBlocked(DoorEntity door, PlayerController player, IReadOnlyCollection<Enemy> enemies)
+    private bool CanDoorClose(DoorEntity door, Vector2 playerPosition)
     {
-        float blockRadius = DungeonMap.TileSize * 0.28f;
-        float radiusSq = blockRadius * blockRadius;
-
-        if (Vector2.DistanceSquared(player.Position, door.Position) <= radiusSq) return true;
-        return enemies.Any(e => e.IsAlive && Vector2.DistanceSquared(e.Position, door.Position) <= radiusSq);
+        float safeDistanceSq = _doorCloseSafeDistance * _doorCloseSafeDistance;
+        return Vector2.DistanceSquared(playerPosition, door.Position) > safeDistanceSq;
     }
 }

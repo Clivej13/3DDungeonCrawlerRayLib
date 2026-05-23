@@ -27,7 +27,6 @@ public sealed class DoorEntity : Entity
     public bool IsLocked => State == DoorState.Locked;
     public bool BlocksMovement => State is DoorState.Closed or DoorState.Locked or DoorState.Closing;
     public bool BlocksRaycast => BlocksMovement;
-    public float TimeSinceOpened { get; private set; }
 
     public DoorEntity(Vector2 position, string id, string requiredKeyId, bool isLocked) : base(position)
     {
@@ -42,17 +41,11 @@ public sealed class DoorEntity : Entity
     {
         State = DoorState.Opening;
         State = DoorState.Open;
-        TimeSinceOpened = 0f;
     }
 
     public void StartClosing()
     {
         State = DoorState.Closing;
         State = DoorState.Closed;
-    }
-
-    public void Tick(float dt)
-    {
-        if (State == DoorState.Open) TimeSinceOpened += dt;
     }
 }
