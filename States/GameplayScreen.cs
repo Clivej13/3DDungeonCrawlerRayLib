@@ -40,7 +40,7 @@ public sealed class GameplayScreen : IDisposable
     {
         _stateController = stateController;
         _textures = new TextureManager();
-        _map = new DungeonMap("Assets/Maps/test_map.json", _textures.GoblinTexture, _textures.SilverKeyTexture, _textures.GoldKeyTexture);
+        _map = new DungeonMap("Assets/Maps/level1.png", _textures.GoblinTexture, _textures.SilverKeyTexture, _textures.GoldKeyTexture);
         _player = new PlayerController(_map);
         _renderer = new RaycastRenderer(_map, _textures.DungeonTexture, _textures.ClosedDoorTexture, _textures.OpenDoorTexture, _textures.SilverLockTexture, _textures.GoldLockTexture, _textures.TickLockTexture);
         _weaponRenderer = new WeaponRenderer(_textures.PlayerAnimationsTexture);
