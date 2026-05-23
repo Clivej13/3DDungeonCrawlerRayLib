@@ -32,12 +32,14 @@ public static class ImageMapLoader
     public static bool ColorsEqual(Color a, Color b)
         => a.R == b.R && a.G == b.G && a.B == b.B;
 
-    public static ImageMapData Load(string mapPath, int tileSize)
+    public static unsafe ImageMapData Load(string mapPath, int tileSize)
     {
         Image image = Raylib.LoadImage(mapPath);
+
         try
         {
-            Color[] pixels = Raylib.LoadImageColors(image);
+            Color* pixels = Raylib.LoadImageColors(image);
+
             try
             {
                 return ParsePixels(pixels, image.Width, image.Height, tileSize);
@@ -53,7 +55,7 @@ public static class ImageMapLoader
         }
     }
 
-    private static ImageMapData ParsePixels(Color[] pixels, int width, int height, int tileSize)
+    private static unsafe ImageMapData ParsePixels(Color* pixels, int width, int height, int tileSize)
     {
         int[,] grid = new int[height, width];
         List<EnemySpawnData> enemies = [];
