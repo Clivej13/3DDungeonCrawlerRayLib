@@ -42,7 +42,13 @@ public sealed class GameplayScreen : IDisposable
         _textures = new TextureManager();
         _map = new DungeonMap("Assets/Maps/level1.json", _textures.GoblinTexture, _textures.KeyTexture);
         _player = new PlayerController(_map);
-        _renderer = new RaycastRenderer(_map, _textures.DungeonTexture, _textures.ClosedDoorTexture, _textures.OpenDoorTexture);
+        _renderer = new RaycastRenderer(
+            _map,
+            _textures.DungeonTexture,
+            _textures.ClosedDoorTexture,
+            _textures.OpenDoorTexture,
+            _textures.MinimapLockTexture,
+            _textures.MinimapTickTexture);
         _weaponRenderer = new WeaponRenderer(_textures.PlayerAnimationsTexture);
         _audio = new AudioManager();
         _doorSystem = new DoorSystem(_map);

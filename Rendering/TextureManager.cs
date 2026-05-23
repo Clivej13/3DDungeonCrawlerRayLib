@@ -10,6 +10,8 @@ public sealed class TextureManager : IDisposable
     public Texture2D KeyTexture { get; }
     public Texture2D ClosedDoorTexture { get; }
     public Texture2D OpenDoorTexture { get; }
+    public Texture2D MinimapLockTexture { get; }
+    public Texture2D MinimapTickTexture { get; }
 
     public TextureManager()
     {
@@ -26,9 +28,13 @@ public sealed class TextureManager : IDisposable
         KeyTexture = Raylib.LoadTexture("Assets/Textures/gold_key.png");
         ClosedDoorTexture = Raylib.LoadTexture("Assets/Textures/closed_door.png");
         OpenDoorTexture = Raylib.LoadTexture("Assets/Textures/open_door.png");
+        MinimapLockTexture = Raylib.LoadTexture("Assets/Textures/silver_lock.png");
+        MinimapTickTexture = Raylib.LoadTexture("Assets/Textures/tick_lock.png");
         Raylib.SetTextureFilter(KeyTexture, TextureFilter.Point);
         Raylib.SetTextureFilter(ClosedDoorTexture, TextureFilter.Point);
         Raylib.SetTextureFilter(OpenDoorTexture, TextureFilter.Point);
+        Raylib.SetTextureFilter(MinimapLockTexture, TextureFilter.Point);
+        Raylib.SetTextureFilter(MinimapTickTexture, TextureFilter.Point);
     }
 
     public void Dispose()
@@ -39,5 +45,7 @@ public sealed class TextureManager : IDisposable
         Raylib.UnloadTexture(KeyTexture);
         Raylib.UnloadTexture(ClosedDoorTexture);
         Raylib.UnloadTexture(OpenDoorTexture);
+        Raylib.UnloadTexture(MinimapLockTexture);
+        Raylib.UnloadTexture(MinimapTickTexture);
     }
 }

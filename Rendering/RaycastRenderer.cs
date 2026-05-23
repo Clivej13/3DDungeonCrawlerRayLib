@@ -46,13 +46,23 @@ public sealed class RaycastRenderer
     private readonly Texture2D _closedDoorTexture;
     private readonly Texture2D _openDoorTexture;
     private readonly Texture2D _minimapKeyTexture;
+    private readonly Texture2D _minimapLockTexture;
+    private readonly Texture2D _minimapTickTexture;
 
-    public RaycastRenderer(DungeonMap map, Texture2D wallTexture, Texture2D closedDoorTexture, Texture2D openDoorTexture)
+    public RaycastRenderer(
+        DungeonMap map,
+        Texture2D wallTexture,
+        Texture2D closedDoorTexture,
+        Texture2D openDoorTexture,
+        Texture2D minimapLockTexture,
+        Texture2D minimapTickTexture)
     {
         _map = map;
         _wallTexture = wallTexture;
         _closedDoorTexture = closedDoorTexture;
         _openDoorTexture = openDoorTexture;
+        _minimapLockTexture = minimapLockTexture;
+        _minimapTickTexture = minimapTickTexture;
         _minimapKeyTexture = _map.Keys.FirstOrDefault()?.Texture ?? openDoorTexture;
 
         _framebuffer = new Color[InternalWidth * InternalHeight];
@@ -549,8 +559,7 @@ public sealed class RaycastRenderer
         {
             Vector2 pos = WorldToMinimap(door.Position, player.Position, minimapCenter, pixelsPerWorldUnit);
             if (!IsMinimapPointVisible(pos, minimapBounds, 10f)) continue;
-            Color doorColor = door.State == DoorState.Open ? new Color(76, 218, 120, 240) : door.IsLocked ? new Color(229, 72, 72, 240) : new Color(255, 194, 76, 240);
-            Raylib.DrawRectangle((int)pos.X - 6, (int)pos.Y - 3, 12, 6, doorColor);
+            DrawDoorMarker(door, pos);
         }
 
         Vector2 playerMinimapPos = WorldToMinimap(player.Position, player.Position, minimapCenter, pixelsPerWorldUnit);
@@ -565,6 +574,52 @@ public sealed class RaycastRenderer
         Vector2 rightPoint = center - (forward * 4f) + (right * 4f);
 
         Raylib.DrawTriangle(tip, left, rightPoint, new Color(64, 196, 255, 255));
+    }
+
+    private void DrawDoorMarker(DoorEntity door, Vector2 minimapPosition)
+    {
+        if (door.State == DoorState.Open)
+        {
+            DrawOpenDoorMarker(minimapPosition);
+            return;
+        }
+
+        if (door.IsLocked)
+        {
+            DrawLockedDoorMarker(minimapPosition);
+            return;
+        }
+
+        DrawUnlockedDoorMarker(minimapPosition);
+    }
+
+    private void DrawLockedDoorMarker(Vector2 minimapPosition)
+        => DrawLockIcon(minimapPosition);
+
+    private void DrawUnlockedDoorMarker(Vector2 minimapPosition)
+    {
+        DrawLockIcon(minimapPosition);
+        DrawTickOverlay(minimapPosition);
+    }
+
+    private static void DrawOpenDoorMarker(Vector2 minimapPosition)
+    {
+        // Intentionally no lock/tick icon for open doors so passage appears open.
+        _ = minimapPosition;
+    }
+
+    private void DrawTickOverlay(Vector2 minimapPosition)
+    {
+        const int iconSize = 16;
+        Rectangle dst = new(minimapPosition.X - (iconSize / 2), minimapPosition.Y - (iconSize / 2), iconSize, iconSize);
+        Raylib.DrawTexturePro(_minimapTickTexture, new Rectangle(0, 0, _minimapTickTexture.Width, _minimapTickTexture.Height), dst, Vector2.Zero, 0f, Color.White);
+    }
+
+    private void DrawLockIcon(Vector2 minimapPosition)
+    {
+        const int iconSize = 16;
+        Rectangle dst = new(minimapPosition.X - (iconSize / 2), minimapPosition.Y - (iconSize / 2), iconSize, iconSize);
+        Raylib.DrawTexturePro(_minimapLockTexture, new Rectangle(0, 0, _minimapLockTexture.Width, _minimapLockTexture.Height), dst, Vector2.Zero, 0f, Color.White);
     }
 
 }
