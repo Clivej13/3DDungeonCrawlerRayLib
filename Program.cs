@@ -7,9 +7,18 @@ class Program
 {
     static void Main()
     {
-        var settings = new WindowSettings();
+        var options = GameOptions.LoadOrCreateDefaults();
+        void SaveOptions() => GameOptions.Save(options);
+
+        var settings = new WindowSettings(options, SaveOptions);
         var (w, h) = settings.CurrentResolution;
         Raylib.InitWindow(w, h, "3DDungeonCrawlerRayLib");
+
+        if (options.IsFullscreen)
+        {
+            Raylib.ToggleFullscreen();
+        }
+
         // Disable Raylib default ESC-to-close behavior
         Raylib.SetExitKey(KeyboardKey.Null);
         Raylib.SetTargetFPS(60);
@@ -18,9 +27,9 @@ class Program
         var stateController = new GameStateController();
 
         var mainMenu = new MainMenuScreen(stateController);
-        var settingsMenu = new SettingsMenuScreen(stateController, settings);
+        var settingsMenu = new SettingsMenuScreen(stateController, settings, options, SaveOptions);
         var controlsMenu = new ControlsMenuScreen(stateController);
-        using var gameplay = new GameplayScreen(stateController);
+        using var gameplay = new GameplayScreen(stateController, options);
         var pauseMenu = new PauseMenuScreen(stateController);
 
         var updates = new Dictionary<GameState, Action<float>>
@@ -44,8 +53,6 @@ class Program
         bool running = true;
         while (running)
         {
-            // WindowShouldClose is for OS-level close requests (X button / platform close event).
-            // It should terminate app immediately and must never be reused as pause/menu input.
             if (Raylib.WindowShouldClose())
             {
                 running = false;
@@ -60,7 +67,6 @@ class Program
             }
             else if (updates.TryGetValue(stateController.CurrentState, out var update))
             {
-                // Exactly one state update per frame ensures Escape is processed once.
                 update(dt);
             }
 

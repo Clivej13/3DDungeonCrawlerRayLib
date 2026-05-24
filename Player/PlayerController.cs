@@ -1,3 +1,4 @@
+using DungeonCrawler.Core;
 using DungeonCrawler.World;
 using Raylib_cs;
 using System.Numerics;
@@ -7,6 +8,7 @@ namespace DungeonCrawler.Player;
 public sealed class PlayerController
 {
     private readonly DungeonMap _map;
+    private readonly GameOptions _options;
 
     public Vector2 Position { get; private set; }
     public float Angle { get; private set; }
@@ -28,9 +30,10 @@ public sealed class PlayerController
 
     public float DamageFlashAmount => Math.Clamp(_damageFlashTimer / 0.12f, 0f, 1f);
 
-    public PlayerController(DungeonMap map)
+    public PlayerController(DungeonMap map, GameOptions options)
     {
         _map = map;
+        _options = options;
         Position = map.PlayerSpawn;
         Angle = map.PlayerSpawnAngle;
     }
@@ -79,6 +82,7 @@ PitchOffset += (_targetPitchOffset - PitchOffset) * interpolation;
 
     public bool TryTakeDamage(float damage)
     {
+        if (_options.DebugModeEnabled && _options.DisableHealth) return false;
         if (!IsAlive || IsInvulnerable) return false;
 
         Health = MathF.Max(0f, Health - damage);
@@ -102,6 +106,12 @@ PitchOffset += (_targetPitchOffset - PitchOffset) * interpolation;
 
     private void TryMove(Vector2 desired)
     {
+        if (_options.DebugModeEnabled && _options.DisableCollision)
+        {
+            Position = desired;
+            return;
+        }
+
         const float collisionRadius = 12f;
 
         // Axis-separated collision helps sliding along walls.
