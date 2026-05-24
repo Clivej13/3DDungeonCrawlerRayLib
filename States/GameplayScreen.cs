@@ -14,7 +14,8 @@ public sealed class GameplayScreen : IDisposable
     private enum GameplayPhase
     {
         Playing,
-        Victory
+        Victory,
+        GameOver
     }
 
     private readonly GameStateController _stateController;
@@ -32,6 +33,46 @@ public sealed class GameplayScreen : IDisposable
     private float _levelTimer;
     private float _statusTextTimer;
     private string _statusText = string.Empty;
+
+    private int _endStateSelection;
+
+    private void HandleEndStateInput(InputHandler input)
+    {
+        if (input.MoveUpPressed() || input.MoveDownPressed())
+        {
+            _endStateSelection = (_endStateSelection + 1) % 2;
+        }
+
+        if (!input.ConfirmPressed()) return;
+
+        if (_endStateSelection == 0)
+        {
+            Raylib.EnableCursor();
+            _stateController.StartNewGame();
+            return;
+        }
+
+        Raylib.EnableCursor();
+        _stateController.ReturnToMainMenu();
+    }
+
+    private void DrawEndOverlay(string title, Color titleColor)
+    {
+        Raylib.DrawRectangle(0, 0, Raylib.GetScreenWidth(), Raylib.GetScreenHeight(), new Color(0, 0, 0, 196));
+        Raylib.DrawText(title, Raylib.GetScreenWidth() / 2 - 130, Raylib.GetScreenHeight() / 2 - 90, 52, titleColor);
+
+        string[] options = ["Restart / New Game", "Return to Main Menu"];
+        for (int i = 0; i < options.Length; i++)
+        {
+            bool selected = i == _endStateSelection;
+            string label = selected ? $"> {options[i]} <" : options[i];
+            Color color = selected ? Color.Orange : Color.RayWhite;
+            int textWidth = Raylib.MeasureText(label, 30);
+            int x = (Raylib.GetScreenWidth() - textWidth) / 2;
+            int y = Raylib.GetScreenHeight() / 2 + (i * 44);
+            Raylib.DrawText(label, x, y, 30, color);
+        }
+    }
 
     private const float SwordCooldown = 0.35f;
     private const int SwordHitFrame = 3;
@@ -60,7 +101,7 @@ public sealed class GameplayScreen : IDisposable
         _attackCooldownTimer = MathF.Max(0f, _attackCooldownTimer - deltaTime);
         _statusTextTimer = MathF.Max(0f, _statusTextTimer - deltaTime);
 
-        bool gameplayActive = _phase == GameplayPhase.Playing;
+        bool gameplayActive = _phase == GameplayPhase.Playing && _player.IsAlive;
         if (gameplayActive)
         {
             _player.Update(deltaTime);
@@ -94,10 +135,15 @@ public sealed class GameplayScreen : IDisposable
             _weaponRenderer.Update(deltaTime);
         }
 
-        if (input.BackPressed())
+        if (_phase == GameplayPhase.Playing && input.BackPressed())
         {
             Raylib.EnableCursor();
             _stateController.ChangeState(GameState.PauseMenu);
+        }
+
+        if (_phase == GameplayPhase.GameOver || _phase == GameplayPhase.Victory)
+        {
+            HandleEndStateInput(input);
         }
     }
 
@@ -191,6 +237,12 @@ public sealed class GameplayScreen : IDisposable
             if (_player.TryTakeDamage(damage))
             {
                 Console.WriteLine("[Combat] Goblin attacked player.");
+                if (!_player.IsAlive)
+                {
+                    _phase = GameplayPhase.GameOver;
+                    Console.WriteLine("[Flow] Player died. Entering game over state.");
+                    break;
+                }
             }
         }
     }
@@ -228,10 +280,10 @@ public sealed class GameplayScreen : IDisposable
     private bool HitsWorldCollision(Enemy enemy, Vector2 position)
     {
         float radius = enemy.Radius;
-        return _map.IsWallAtWorld(position.X - radius, position.Y - radius)
-            || _map.IsWallAtWorld(position.X + radius, position.Y - radius)
-            || _map.IsWallAtWorld(position.X - radius, position.Y + radius)
-            || _map.IsWallAtWorld(position.X + radius, position.Y + radius);
+        return _map.IsBlockedAtWorld(position.X - radius, position.Y - radius)
+            || _map.IsBlockedAtWorld(position.X + radius, position.Y - radius)
+            || _map.IsBlockedAtWorld(position.X - radius, position.Y + radius)
+            || _map.IsBlockedAtWorld(position.X + radius, position.Y + radius);
     }
 
     public void Draw()
@@ -278,9 +330,13 @@ public sealed class GameplayScreen : IDisposable
 
         if (_phase == GameplayPhase.Victory)
         {
-            Raylib.DrawRectangle(0, 0, Raylib.GetScreenWidth(), Raylib.GetScreenHeight(), new Color(0, 0, 0, 196));
-            Raylib.DrawText("YOU ESCAPED", Raylib.GetScreenWidth() / 2 - 140, Raylib.GetScreenHeight() / 2 - 20, 48, Color.Lime);
-            Raylib.DrawText("Press ESC to return to menu", Raylib.GetScreenWidth() / 2 - 150, Raylib.GetScreenHeight() / 2 + 34, 24, Color.White);
+            DrawEndOverlay("YOU ESCAPED", Color.Lime);
+        }
+
+        if (_phase == GameplayPhase.GameOver)
+        {
+            Raylib.DrawRectangle(0, 0, Raylib.GetScreenWidth(), Raylib.GetScreenHeight(), new Color(90, 0, 0, 145));
+            DrawEndOverlay("YOU DIED", Color.Red);
         }
     }
 

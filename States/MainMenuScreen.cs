@@ -14,10 +14,8 @@ public sealed class MainMenuScreen : MenuBase
         _stateController = stateController;
         SetOptions(new[]
         {
-            new MenuOption("Start Game", () => _stateController.ChangeState(GameState.Gameplay)),
-            new MenuOption("Settings", () => _stateController.OpenMenu(GameState.SettingsMenu)),
-            new MenuOption("Controls", () => _stateController.OpenMenu(GameState.ControlsMenu)),
-            new MenuOption("Exit", () => _stateController.ChangeState(GameState.Exiting))
+            new MenuOption("New Game", () => _stateController.StartNewGame()),
+            new MenuOption("Quit", () => _stateController.ChangeState(GameState.Exiting))
         });
     }
 

@@ -15,10 +15,8 @@ public sealed class PauseMenuScreen : MenuBase
         SetOptions(new[]
         {
             new MenuOption("Resume", () => _stateController.ChangeState(GameState.Gameplay)),
-            new MenuOption("Options", () => _stateController.OpenMenu(GameState.SettingsMenu)),
-            new MenuOption("Controls", () => _stateController.OpenMenu(GameState.ControlsMenu)),
-            new MenuOption("Exit To Main Menu", () => _stateController.ReturnToMainMenu()),
-            new MenuOption("Exit Game", () => _stateController.ChangeState(GameState.Exiting))
+            new MenuOption("Main Menu", () => _stateController.ReturnToMainMenu()),
+            new MenuOption("Quit", () => _stateController.ChangeState(GameState.Exiting))
         });
     }
 
