@@ -11,7 +11,13 @@
     { "id": "gold_key", "tileX": 12, "tileY": 9 }
   ],
   "doors": [
-    { "id": "silver_door", "tileX": 9, "tileY": 5, "requiredKeyId": "silver_key" },
-    { "id": "gold_door", "tileX": 10, "tileY": 13, "requiredKeyId": "gold_key" }
+    { "id": "door_5_2", "tileX": 4, "tileY": 1 },
+    { "id": "door_7_2", "tileX": 6, "tileY": 1 },
+
+    { "id": "door_5_6", "tileX": 4, "tileY": 5 },
+    { "id": "door_7_6", "tileX": 6, "tileY": 5 },
+
+    { "id": "door_5_10", "tileX": 4, "tileY": 9 },
+    { "id": "door_7_10", "tileX": 6, "tileY": 9 }
   ]
 }
