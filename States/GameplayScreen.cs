@@ -25,6 +25,7 @@ public sealed class GameplayScreen : IDisposable
     private readonly WeaponRenderer _weaponRenderer;
     private readonly AudioManager _audio;
     private readonly DoorSystem _doorSystem;
+    private readonly GameOptions _options;
     private string _doorPrompt = string.Empty;
     private bool _didHitDuringSwing;
     private float _attackCooldownTimer;
@@ -36,12 +37,13 @@ public sealed class GameplayScreen : IDisposable
     private const float SwordCooldown = 0.35f;
     private const int SwordHitFrame = 3;
 
-    public GameplayScreen(GameStateController stateController)
+    public GameplayScreen(GameStateController stateController, GameOptions options)
     {
         _stateController = stateController;
+        _options = options;
         _textures = new TextureManager();
         _map = new DungeonMap("Assets/Maps/level1.json", _textures.GoblinTexture, _textures.KeyTexture);
-        _player = new PlayerController(_map);
+        _player = new PlayerController(_map, _options);
         _renderer = new RaycastRenderer(
             _map,
             _textures.DungeonTexture,
@@ -51,7 +53,7 @@ public sealed class GameplayScreen : IDisposable
             _textures.MinimapTickTexture);
         _weaponRenderer = new WeaponRenderer(_textures.PlayerAnimationsTexture);
         _audio = new AudioManager();
-        _doorSystem = new DoorSystem(_map);
+        _doorSystem = new DoorSystem(_map, _options);
     }
 
     public void Update(InputHandler input, float deltaTime)

@@ -2,6 +2,8 @@ using DungeonCrawler.Entities;
 using DungeonCrawler.Player;
 using System.Numerics;
 
+using DungeonCrawler.Core;
+
 namespace DungeonCrawler.World;
 
 public enum DoorState
@@ -18,11 +20,13 @@ public sealed class DoorSystem
     private const float DoorCloseSafeDistanceMultiplier = 0.75f;
     private readonly DungeonMap _map;
     private readonly float _interactionRange;
+    private readonly GameOptions _options;
     private readonly float _doorCloseSafeDistance;
 
-    public DoorSystem(DungeonMap map, float interactionRange = 96f)
+    public DoorSystem(DungeonMap map, GameOptions options, float interactionRange = 96f)
     {
         _map = map;
+        _options = options;
         _interactionRange = interactionRange;
         _doorCloseSafeDistance = DungeonMap.TileSize * DoorCloseSafeDistanceMultiplier;
     }
@@ -83,7 +87,8 @@ public sealed class DoorSystem
             }
             else
             {
-                bool hasKey = player.HasKey(door.RequiredKeyId);
+                // Debug mode can bypass key checks while keeping normal door/key flow intact.
+                bool hasKey = (_options.DebugModeEnabled && _options.DisableKeyRequirements) || player.HasKey(door.RequiredKeyId);
                 if (!hasKey)
                 {
                     status = $"Need key: {door.RequiredKeyId}";

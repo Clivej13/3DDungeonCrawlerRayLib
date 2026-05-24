@@ -7,6 +7,9 @@ namespace DungeonCrawler.Core;
 /// </summary>
 public sealed class WindowSettings
 {
+    private readonly GameOptions _options;
+    private readonly Action _saveOptions;
+
     public readonly (int Width, int Height)[] Resolutions =
     {
         (1280, 720),
@@ -14,10 +17,30 @@ public sealed class WindowSettings
         (1920, 1080)
     };
 
-    public int ResolutionIndex { get; private set; } = 0;
-    public bool IsFullscreen { get; private set; } = false;
+    public int ResolutionIndex
+    {
+        get => _options.ResolutionIndex;
+        private set => _options.ResolutionIndex = value;
+    }
+
+    public bool IsFullscreen
+    {
+        get => _options.IsFullscreen;
+        private set => _options.IsFullscreen = value;
+    }
 
     public (int Width, int Height) CurrentResolution => Resolutions[ResolutionIndex];
+
+    public WindowSettings(GameOptions options, Action saveOptions)
+    {
+        _options = options;
+        _saveOptions = saveOptions;
+
+        if (ResolutionIndex < 0 || ResolutionIndex >= Resolutions.Length)
+        {
+            ResolutionIndex = 0;
+        }
+    }
 
     public void SetResolutionIndex(int index)
     {
@@ -29,6 +52,7 @@ public sealed class WindowSettings
         ResolutionIndex = index;
         var (width, height) = CurrentResolution;
         Raylib.SetWindowSize(width, height);
+        _saveOptions();
     }
 
     public void CycleResolution(int direction)
@@ -50,5 +74,6 @@ public sealed class WindowSettings
     {
         Raylib.ToggleFullscreen();
         IsFullscreen = !IsFullscreen;
+        _saveOptions();
     }
 }
