@@ -7,6 +7,8 @@ public sealed class TextureManager : IDisposable
     public Texture2D DungeonTexture { get; }
     public Texture2D PlayerAnimationsTexture { get; }
     public Texture2D GoblinTexture { get; }
+    public Texture2D GoblinWindupTexture { get; }
+    public Texture2D GoblinAttackTexture { get; }
     public Texture2D KeyTexture { get; }
     public Texture2D ClosedDoorTexture { get; }
     public Texture2D OpenDoorTexture { get; }
@@ -23,7 +25,11 @@ public sealed class TextureManager : IDisposable
         Raylib.SetTextureFilter(PlayerAnimationsTexture, TextureFilter.Point);
 
         GoblinTexture = Raylib.LoadTexture("Assets/Textures/goblin.png");
+        GoblinWindupTexture = Raylib.LoadTexture("Assets/Textures/goblin_strike_windup_dodge.png");
+        GoblinAttackTexture = Raylib.LoadTexture("Assets/Textures/goblin_strike_dodge.png");
         Raylib.SetTextureFilter(GoblinTexture, TextureFilter.Point);
+        Raylib.SetTextureFilter(GoblinWindupTexture, TextureFilter.Point);
+        Raylib.SetTextureFilter(GoblinAttackTexture, TextureFilter.Point);
 
         KeyTexture = Raylib.LoadTexture("Assets/Textures/gold_key.png");
         ClosedDoorTexture = Raylib.LoadTexture("Assets/Textures/closed_door.png");
@@ -42,6 +48,8 @@ public sealed class TextureManager : IDisposable
         Raylib.UnloadTexture(DungeonTexture);
         Raylib.UnloadTexture(PlayerAnimationsTexture);
         Raylib.UnloadTexture(GoblinTexture);
+        Raylib.UnloadTexture(GoblinWindupTexture);
+        Raylib.UnloadTexture(GoblinAttackTexture);
         Raylib.UnloadTexture(KeyTexture);
         Raylib.UnloadTexture(ClosedDoorTexture);
         Raylib.UnloadTexture(OpenDoorTexture);

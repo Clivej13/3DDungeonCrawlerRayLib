@@ -48,7 +48,7 @@ public sealed class AudioManager : IDisposable
 
         _goblinFootstepCooldown = MathF.Max(0f, _goblinFootstepCooldown - deltaTime);
         GoblinEnemy? nearestChasing = goblins
-            .Where(g => g.IsAlive && g.IsChasing)
+            .Where(g => g.IsAlive && g.CombatState == EnemyCombatState.Chasing)
             .OrderBy(g => Vector2.DistanceSquared(g.Position, player.Position))
             .FirstOrDefault();
 

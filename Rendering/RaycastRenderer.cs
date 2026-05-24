@@ -259,7 +259,7 @@ public sealed class RaycastRenderer
             int drawLeft = spriteScreenX - (spriteWidth / 2);
             int drawRight = drawLeft + spriteWidth;
 
-            var sprite = GetSpritePixels(enemy.Texture);
+            var sprite = GetSpritePixels(enemy.CurrentTexture);
             byte shade = ShadeByte(transformY, SpriteMinBrightness, 0.85f, AtmosphereDistanceScale * 0.9f);
 
             for (int screenX = Math.Max(0, drawLeft); screenX < Math.Min(InternalWidth, drawRight); screenX++)
