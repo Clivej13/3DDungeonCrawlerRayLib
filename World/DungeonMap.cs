@@ -18,7 +18,7 @@ public sealed class DungeonMap
     public List<DoorEntity> Doors { get; } = [];
     public ExitData? Exit { get; }
 
-    public DungeonMap(string levelMetadataPath, Texture2D goblinTexture, Texture2D goblinWindupTexture, Texture2D goblinAttackTexture, Texture2D keyTexture)
+    public DungeonMap(string levelMetadataPath, Texture2D goblinTexture, Texture2D goblinLightWindupTexture, Texture2D goblinHeavyWindupTexture, Texture2D goblinStrikeTexture, Texture2D goblinStaggerTexture, Texture2D keyTexture)
     {
         LevelMetadata metadata = LevelMetadataLoader.Load(levelMetadataPath, TileSize);
         ImageMapData geometry = ImageMapLoader.Load(metadata.MapImage, TileSize);
@@ -26,7 +26,7 @@ public sealed class DungeonMap
         _grid = geometry.Grid;
         PlayerSpawn = geometry.PlayerSpawn;
         PlayerSpawnAngle = 0f;
-        Enemies = MapLoader.BuildEnemies(metadata.Enemies, goblinTexture, goblinWindupTexture, goblinAttackTexture);
+        Enemies = MapLoader.BuildEnemies(metadata.Enemies, goblinTexture, goblinLightWindupTexture, goblinHeavyWindupTexture, goblinStrikeTexture, goblinStaggerTexture);
         Exit = geometry.Exit;
 
         foreach (KeySpawnData spawn in metadata.Keys)
