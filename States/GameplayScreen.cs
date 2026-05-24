@@ -123,6 +123,7 @@ public sealed class GameplayScreen : IDisposable
                 DoorState.Closed => "Press E to Open Door",
                 DoorState.Locked when !hasKey => "Locked Door",
                 DoorState.Locked when hasKey => "Press E to Unlock Door",
+                DoorState.Open => "Press E to Close Door",
                 _ => string.Empty
             };
 

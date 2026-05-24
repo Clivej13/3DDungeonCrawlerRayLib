@@ -15,7 +15,7 @@ public enum DoorState
 
 public sealed class DoorSystem
 {
-    private const float DoorCloseSafeDistanceMultiplier = 1.25f;
+    private const float DoorCloseSafeDistanceMultiplier = 0.75f;
     private readonly DungeonMap _map;
     private readonly float _interactionRange;
     private readonly float _doorCloseSafeDistance;
@@ -57,30 +57,42 @@ public sealed class DoorSystem
     {
         _ = dt;
         _ = enemies;
-        foreach (DoorEntity door in _map.Doors)
-        {
-            if (door.State != DoorState.Open) continue;
-            if (!CanDoorClose(door, player.Position)) continue;
-            door.StartClosing();
-        }
+        _ = player;
     }
 
     public bool TryInteract(PlayerController player, DoorEntity door, out string? status)
     {
         status = null;
-        if (door.State == DoorState.Open) return false;
-
-        if (door.State == DoorState.Locked)
+        if (door.State == DoorState.Open)
         {
-            bool hasKey = player.HasKey(door.RequiredKeyId);
-            if (!hasKey)
+            if (!CanDoorClose(door, player.Position))
             {
-                status = $"Need key: {door.RequiredKeyId}";
+                status = "Too close to close door";
                 return false;
             }
 
-            door.Unlock();
-            status = "Door Unlocked";
+            door.StartClosing();
+            return true;
+        }
+
+        if (door.State == DoorState.Locked)
+        {
+            if (string.IsNullOrWhiteSpace(door.RequiredKeyId))
+            {
+                door.Unlock();
+            }
+            else
+            {
+                bool hasKey = player.HasKey(door.RequiredKeyId);
+                if (!hasKey)
+                {
+                    status = $"Need key: {door.RequiredKeyId}";
+                    return false;
+                }
+
+                door.Unlock();
+                status = "Door Unlocked";
+            }
         }
 
         if (door.State == DoorState.Closed)

@@ -22,13 +22,13 @@ public sealed class KeyItem : Entity
 public sealed class DoorEntity : Entity
 {
     public string Id { get; }
-    public string RequiredKeyId { get; }
+    public string? RequiredKeyId { get; }
     public DoorState State { get; private set; }
     public bool IsLocked => State == DoorState.Locked;
     public bool BlocksMovement => State is DoorState.Closed or DoorState.Locked or DoorState.Closing;
     public bool BlocksRaycast => BlocksMovement;
 
-    public DoorEntity(Vector2 position, string id, string requiredKeyId, bool isLocked) : base(position)
+    public DoorEntity(Vector2 position, string id, string? requiredKeyId, bool isLocked) : base(position)
     {
         Id = id;
         RequiredKeyId = requiredKeyId;

@@ -57,7 +57,7 @@ public static class LevelMetadataLoader
                 RequiredKeyId = d.RequiredKeyId,
                 X = MapLoader.TileToWorld(d.TileX, tileSize),
                 Y = MapLoader.TileToWorld(d.TileY, tileSize),
-                Locked = true
+                Locked = !string.IsNullOrWhiteSpace(d.RequiredKeyId)
             }).ToList()
         };
     }
@@ -89,6 +89,6 @@ public static class LevelMetadataLoader
         public string Id { get; set; } = "silver_door";
         public int TileX { get; set; }
         public int TileY { get; set; }
-        public string RequiredKeyId { get; set; } = "silver_key";
+        public string? RequiredKeyId { get; set; }
     }
 }
