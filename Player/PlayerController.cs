@@ -19,8 +19,7 @@ public sealed class PlayerController
     public float Health { get; private set; } = 100f;
     public bool IsAlive => Health > 0f;
     public bool IsInvulnerable => _invulnerabilityTimer > 0f;
-    public bool HasSilverKey { get; set; }
-    public bool HasGoldKey { get; set; }
+    public HashSet<string> CollectedKeyIds { get; } = new(StringComparer.OrdinalIgnoreCase);
     public bool IsMoving { get; private set; }
 
     private float _invulnerabilityTimer;
@@ -89,6 +88,17 @@ PitchOffset += (_targetPitchOffset - PitchOffset) * interpolation;
         Console.WriteLine($"[Combat] Player took {damage:0} damage. HP={Health:0}");
         return true;
     }
+
+    public void AddKey(string keyId)
+    {
+        if (!string.IsNullOrWhiteSpace(keyId))
+        {
+            CollectedKeyIds.Add(keyId);
+        }
+    }
+
+    public bool HasKey(string keyId)
+        => !string.IsNullOrWhiteSpace(keyId) && CollectedKeyIds.Contains(keyId);
 
     private void TryMove(Vector2 desired)
     {

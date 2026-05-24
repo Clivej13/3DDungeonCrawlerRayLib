@@ -18,7 +18,7 @@ public sealed class DungeonMap
     public List<DoorEntity> Doors { get; } = [];
     public ExitData? Exit { get; }
 
-    public DungeonMap(string levelMetadataPath, Texture2D goblinTexture, Texture2D silverKeyTexture, Texture2D goldKeyTexture)
+    public DungeonMap(string levelMetadataPath, Texture2D goblinTexture, Texture2D keyTexture)
     {
         LevelMetadata metadata = LevelMetadataLoader.Load(levelMetadataPath, TileSize);
         ImageMapData geometry = ImageMapLoader.Load(metadata.MapImage, TileSize);
@@ -31,36 +31,24 @@ public sealed class DungeonMap
 
         foreach (KeySpawnData spawn in metadata.Keys)
         {
-            if (!MapLoader.TryParseKeyType(spawn.Type, out KeyType keyType))
-            {
-                Console.WriteLine($"[MapValidation] Unknown key type '{spawn.Type}'. Skipped.");
-                continue;
-            }
-
             if (!MapLoader.IsWalkableSpawn(_grid, TileSize, spawn.X, spawn.Y))
             {
-                Console.WriteLine($"[MapValidation] Key {keyType} at ({spawn.X},{spawn.Y}) is inside wall/out of bounds. Skipped.");
+                Console.WriteLine($"[MapValidation] Key '{spawn.Id}' at ({spawn.X},{spawn.Y}) is inside wall/out of bounds. Skipped.");
                 continue;
             }
 
-            Keys.Add(new KeyItem(new Vector2(spawn.X, spawn.Y), keyType, keyType == KeyType.Silver ? silverKeyTexture : goldKeyTexture));
+            Keys.Add(new KeyItem(new Vector2(spawn.X, spawn.Y), spawn.Id, keyTexture));
         }
 
         foreach (DoorSpawnData spawn in metadata.Doors)
         {
-            if (!MapLoader.TryParseKeyType(spawn.Type, out KeyType keyType))
-            {
-                Console.WriteLine($"[MapValidation] Unknown door type '{spawn.Type}'. Skipped.");
-                continue;
-            }
-
             if (!MapLoader.IsWalkableSpawn(_grid, TileSize, spawn.X, spawn.Y))
             {
-                Console.WriteLine($"[MapValidation] Door {keyType} at ({spawn.X},{spawn.Y}) is inside wall/out of bounds. Skipped.");
+                Console.WriteLine($"[MapValidation] Door '{spawn.Id}' at ({spawn.X},{spawn.Y}) is inside wall/out of bounds. Skipped.");
                 continue;
             }
 
-            Doors.Add(new DoorEntity(new Vector2(spawn.X, spawn.Y), keyType, spawn.Locked));
+            Doors.Add(new DoorEntity(new Vector2(spawn.X, spawn.Y), spawn.Id, spawn.RequiredKeyId, spawn.Locked));
         }
 
         if (Exit is null)

@@ -10,24 +10,6 @@ public static class MapLoader
 
     public static System.Numerics.Vector2 ToWorldPosition(int tileX, int tileY, int tileSize)
         => new(TileToWorld(tileX, tileSize), TileToWorld(tileY, tileSize));
-    public static bool TryParseKeyType(string value, out KeyType keyType)
-    {
-        if (value.Equals("silver", StringComparison.OrdinalIgnoreCase))
-        {
-            keyType = KeyType.Silver;
-            return true;
-        }
-
-        if (value.Equals("gold", StringComparison.OrdinalIgnoreCase))
-        {
-            keyType = KeyType.Gold;
-            return true;
-        }
-
-        keyType = KeyType.Silver;
-        return false;
-    }
-
     public static List<Enemy> BuildEnemies(IEnumerable<EnemySpawnData> spawns, Texture2D goblinTexture)
     {
         List<Enemy> enemies = [];

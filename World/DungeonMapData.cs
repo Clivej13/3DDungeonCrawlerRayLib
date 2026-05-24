@@ -9,14 +9,15 @@ public sealed class EnemySpawnData
 
 public sealed class KeySpawnData
 {
-    public required string Type { get; set; }
+    public required string Id { get; set; }
     public float X { get; set; }
     public float Y { get; set; }
 }
 
 public sealed class DoorSpawnData
 {
-    public required string Type { get; set; }
+    public required string Id { get; set; }
+    public required string RequiredKeyId { get; set; }
     public float X { get; set; }
     public float Y { get; set; }
     public bool Locked { get; set; } = true;
