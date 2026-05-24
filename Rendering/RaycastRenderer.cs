@@ -578,13 +578,16 @@ public sealed class RaycastRenderer
 
     private void DrawDoorMarker(DoorEntity door, PlayerController player, Vector2 minimapPosition)
     {
-        if (!player.HasKey(door.RequiredKeyId))
+        bool hasNoRequiredKey = string.IsNullOrWhiteSpace(door.RequiredKeyId);
+        bool hasMatchingKey = player.HasKey(door.RequiredKeyId);
+
+        if (hasNoRequiredKey || hasMatchingKey)
         {
-            DrawLockedDoorMarker(minimapPosition);
+            DrawUnlockedDoorMarker(minimapPosition);
             return;
         }
 
-        DrawUnlockedDoorMarker(minimapPosition);
+        DrawLockedDoorMarker(minimapPosition);
     }
 
     private void DrawLockedDoorMarker(Vector2 minimapPosition)
