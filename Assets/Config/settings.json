@@ -2,7 +2,7 @@
   "ResolutionIndex": 0,
   "IsFullscreen": false,
   "DebugModeEnabled": false,
-  "DisableHealth": true,
-  "DisableCollision": true,
+  "DisableHealth": false,
+  "DisableCollision": false,
   "DisableKeyRequirements": false
 }
