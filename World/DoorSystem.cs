@@ -15,7 +15,7 @@ public enum DoorState
 
 public sealed class DoorSystem
 {
-    private const float DoorCloseSafeDistanceMultiplier = 1.25f;
+    private const float DoorCloseSafeDistanceMultiplier = 0.75f;
     private readonly DungeonMap _map;
     private readonly float _interactionRange;
     private readonly float _doorCloseSafeDistance;
