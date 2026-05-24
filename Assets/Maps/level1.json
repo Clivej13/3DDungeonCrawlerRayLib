@@ -24,14 +24,19 @@
   ],
   "keys": [
     {
-      "id": "silver_key",
-      "tileX": 3,
+      "id": "0",
+      "tileX": 9,
+      "tileY": 11
+    },
+    {
+      "id": "1",
+      "tileX": 16,
       "tileY": 5
     },
     {
-      "id": "gold_key",
-      "tileX": 12,
-      "tileY": 9
+      "id": "2",
+      "tileX": 24,
+      "tileY": 32
     }
   ],
   "doors": [
@@ -68,72 +73,86 @@
     {
       "id": "door_13_4",
       "tileX": 18,
-      "tileY": 5
+      "tileY": 5,
+      "requiredKeyId": "0"
     },
     {
       "id": "door_20_4",
       "tileX": 20,
-      "tileY": 5
+      "tileY": 5,
+      "requiredKeyId": "0"
     },
     {
       "id": "door_13_10",
       "tileX": 18,
-      "tileY": 10
+      "tileY": 10,
+      "requiredKeyId": "0"
     },
     {
       "id": "door_20_10",
       "tileX": 20,
-      "tileY": 10
+      "tileY": 10,
+      "requiredKeyId": "0"
     },
     {
       "id": "door_13_15",
       "tileX": 18,
-      "tileY": 15
+      "tileY": 15,
+      "requiredKeyId": "0"
     },
     {
       "id": "door_20_15",
       "tileX": 20,
-      "tileY": 15
+      "tileY": 15,
+      "requiredKeyId": "0"
     },
     {
       "id": "door_13_21",
       "tileX": 18,
-      "tileY": 22
+      "tileY": 22,
+      "requiredKeyId": "1"
     },
     {
       "id": "door_20_21",
       "tileX": 20,
-      "tileY": 22
+      "tileY": 22,
+      "requiredKeyId": "1"
     },
     {
       "id": "door_18_26",
       "tileX": 18,
-      "tileY": 27
+      "tileY": 27,
+      "requiredKeyId": "1"
     },
     {
       "id": "door_20_26",
       "tileX": 20,
-      "tileY": 27
+      "tileY": 27,
+      "requiredKeyId": "1"
     },
     {
       "id": "door_18_32",
       "tileX": 18,
-      "tileY": 32
+      "tileY": 32,
+      "requiredKeyId": "1"
     },
     {
       "id": "door_20_32",
       "tileX": 20,
-      "tileY": 32
+      "tileY": 32,
+      "requiredKeyId": "1"
     },
     {
       "id": "door_1_25",
       "tileX": 1,
-      "tileY": 25
+      "tileY": 25,
+      "requiredKeyId": "2"
     },
         {
       "id": "door_10_22",
       "tileX": 10,
-      "tileY": 22
+      "tileY": 22,
+      "requiredKeyId": "1"
     }
   ]
 }
