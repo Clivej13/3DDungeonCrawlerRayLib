@@ -17,10 +17,10 @@ public sealed class KeySpawnData
 public sealed class DoorSpawnData
 {
     public required string Id { get; set; }
-    public required string RequiredKeyId { get; set; }
+    public string? RequiredKeyId { get; set; }
     public float X { get; set; }
     public float Y { get; set; }
-    public bool Locked { get; set; } = true;
+    public bool Locked { get; set; }
 }
 
 public sealed class ExitData

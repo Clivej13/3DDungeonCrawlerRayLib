@@ -97,7 +97,7 @@ PitchOffset += (_targetPitchOffset - PitchOffset) * interpolation;
         }
     }
 
-    public bool HasKey(string keyId)
+    public bool HasKey(string? keyId)
         => !string.IsNullOrWhiteSpace(keyId) && CollectedKeyIds.Contains(keyId);
 
     private void TryMove(Vector2 desired)
