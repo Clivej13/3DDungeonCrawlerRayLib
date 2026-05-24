@@ -16,6 +16,7 @@ public sealed class SettingsMenuScreen
         "Resolution",
         "Fullscreen",
         "Debug Mode",
+        "Combat Debug",
         "Disable Health",
         "Disable Collision",
         "Disable Key Requirements",
@@ -42,11 +43,12 @@ public sealed class SettingsMenuScreen
 
         if (_selectedIndex == 1 && input.ConfirmPressed()) _windowSettings.ToggleFullscreen();
         if (_selectedIndex == 2 && input.ConfirmPressed()) ToggleOption(() => _options.DebugModeEnabled = !_options.DebugModeEnabled);
-        if (_selectedIndex == 3 && input.ConfirmPressed()) ToggleOption(() => _options.DisableHealth = !_options.DisableHealth);
-        if (_selectedIndex == 4 && input.ConfirmPressed()) ToggleOption(() => _options.DisableCollision = !_options.DisableCollision);
-        if (_selectedIndex == 5 && input.ConfirmPressed()) ToggleOption(() => _options.DisableKeyRequirements = !_options.DisableKeyRequirements);
+        if (_selectedIndex == 3 && input.ConfirmPressed()) ToggleOption(() => _options.CombatDebugOverlayEnabled = !_options.CombatDebugOverlayEnabled);
+        if (_selectedIndex == 4 && input.ConfirmPressed()) ToggleOption(() => _options.DisableHealth = !_options.DisableHealth);
+        if (_selectedIndex == 5 && input.ConfirmPressed()) ToggleOption(() => _options.DisableCollision = !_options.DisableCollision);
+        if (_selectedIndex == 6 && input.ConfirmPressed()) ToggleOption(() => _options.DisableKeyRequirements = !_options.DisableKeyRequirements);
 
-        if ((_selectedIndex == 6 && input.ConfirmPressed()) || input.BackPressed()) _stateController.GoBack();
+        if ((_selectedIndex == 7 && input.ConfirmPressed()) || input.BackPressed()) _stateController.GoBack();
     }
 
     public void Draw()
@@ -56,10 +58,11 @@ public sealed class SettingsMenuScreen
         DrawRow(0, $"Resolution: {w}x{h}", 170);
         DrawRow(1, $"Fullscreen: {(_windowSettings.IsFullscreen ? "ON" : "OFF")}", 214);
         DrawRow(2, $"Debug Mode: {(_options.DebugModeEnabled ? "ON" : "OFF")}", 258);
-        DrawRow(3, $"Disable Health: {(_options.DisableHealth ? "ON" : "OFF")}", 302);
-        DrawRow(4, $"Disable Collision: {(_options.DisableCollision ? "ON" : "OFF")}", 346);
-        DrawRow(5, $"Disable Key Requirements: {(_options.DisableKeyRequirements ? "ON" : "OFF")}", 390);
-        DrawRow(6, "Back", 434);
+        DrawRow(3, $"Combat Debug: {(_options.CombatDebugOverlayEnabled ? "ON" : "OFF")}", 302);
+        DrawRow(4, $"Disable Health: {(_options.DisableHealth ? "ON" : "OFF")}", 346);
+        DrawRow(5, $"Disable Collision: {(_options.DisableCollision ? "ON" : "OFF")}", 390);
+        DrawRow(6, $"Disable Key Requirements: {(_options.DisableKeyRequirements ? "ON" : "OFF")}", 434);
+        DrawRow(7, "Back", 478);
         Raylib.DrawText("LEFT/RIGHT: Resolution   ENTER: Toggle/Confirm   ESC: Back", 30, Raylib.GetScreenHeight() - 40, 20, Color.DarkGray);
     }
 
