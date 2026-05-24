@@ -28,13 +28,14 @@ public sealed class GameplayScreen : IDisposable
     private float _levelTimer;
     private float _statusTextTimer;
     private string _statusText = string.Empty;
+    private string _lastEnemyAttackResult = "none";
 
     public GameplayScreen(GameStateController stateController, GameOptions options)
     {
         _stateController = stateController;
         _options = options;
         _textures = new TextureManager();
-        _map = new DungeonMap("Assets/Maps/level1.json", _textures.GoblinTexture, _textures.GoblinWindupTexture, _textures.GoblinAttackTexture, _textures.KeyTexture);
+        _map = new DungeonMap("Assets/Maps/level1.json", _textures.GoblinTexture, _textures.GoblinLightWindupTexture, _textures.GoblinHeavyWindupTexture, _textures.GoblinStrikeTexture, _textures.GoblinStaggerTexture, _textures.KeyTexture);
         _player = new PlayerController(_map, _options);
         _playerCombat = new PlayerCombat();
         _renderer = new RaycastRenderer(_map, _textures.DungeonTexture, _textures.ClosedDoorTexture, _textures.OpenDoorTexture, _textures.MinimapLockTexture, _textures.MinimapTickTexture);
@@ -53,8 +54,10 @@ public sealed class GameplayScreen : IDisposable
             _playerCombat.Update(deltaTime, _player, _map, _map.Enemies);
             _weaponRenderer.Update(deltaTime);
 
-            if (Raylib.IsMouseButtonPressed(MouseButton.Left) && _playerCombat.TryStartAttack()) _weaponRenderer.TriggerAttack();
+            if (Raylib.IsMouseButtonPressed(MouseButton.Left) && !_playerCombat.IsBlocking && _playerCombat.TryStartAttack()) _weaponRenderer.TriggerAttack();
             if (Raylib.IsKeyPressed(KeyboardKey.Space)) _playerCombat.TryStartDodge(_player.MoveInputDirection, _player.Angle);
+            if (Raylib.IsMouseButtonDown(MouseButton.Right)) _playerCombat.TryStartBlock();
+            if (Raylib.IsMouseButtonReleased(MouseButton.Right)) _playerCombat.StopBlock();
 
             foreach (Enemy enemy in _map.Enemies)
             {
@@ -99,9 +102,24 @@ public sealed class GameplayScreen : IDisposable
     {
         foreach (GoblinEnemy goblin in _map.Enemies.OfType<GoblinEnemy>().Where(g => g.IsAlive && g.CanDamagePlayerThisFrame))
         {
-            if (!goblin.IsAttackValid(_player.Position, _map)) continue;
-            if (_playerCombat.IsDodgeInvulnerable) continue;
-            _player.TryTakeDamage(GoblinEnemy.AttackDamage);
+            if (!goblin.IsAttackValid(_player.Position, _map))
+            {
+                _lastEnemyAttackResult = "missed";
+                continue;
+            }
+            if (_playerCombat.IsBlocking && _playerCombat.TryBlockHit(goblin.CurrentAttackType == GoblinAttackType.Heavy, _player))
+            {
+                goblin.ApplyBlockStagger(goblin.CurrentBlockStaggerDuration);
+                _lastEnemyAttackResult = "blocked";
+                continue;
+            }
+            if (_playerCombat.IsDodgeInvulnerable)
+            {
+                _lastEnemyAttackResult = "dodged";
+                continue;
+            }
+            _player.TryTakeDamage(goblin.CurrentAttackDamage);
+            _lastEnemyAttackResult = "hit";
         }
     }
 
@@ -138,12 +156,15 @@ public sealed class GameplayScreen : IDisposable
     private void DrawCombatDebug()
     {
         int x = 12, y = 12;
-        Raylib.DrawRectangle(x, y, 520, 190, new Color(0,0,0,170));
-        Raylib.DrawText($"AttackState: {_playerCombat.AttackState}", x+10, y+10, 18, Color.White);
-        Raylib.DrawText($"DodgeCD: {_playerCombat.DodgeCooldownRemaining:0.00}  iFrames:{_playerCombat.IsDodgeInvulnerable}", x+10, y+34, 18, Color.White);
-        Raylib.DrawText($"Stamina: {_playerCombat.Stamina:0.0}", x+10, y+58, 18, Color.White);
+        Raylib.DrawRectangle(x, y, 560, 230, new Color(0,0,0,170));
+        Raylib.DrawText($"HP: {_player.Health:0.0}", x+10, y+10, 18, Color.White);
+        Raylib.DrawText($"AttackState: {_playerCombat.AttackState}", x+10, y+34, 18, Color.White);
+        Raylib.DrawText($"Blocking: {_playerCombat.IsBlocking}", x+10, y+58, 18, Color.White);
+        Raylib.DrawText($"DodgeCD: {_playerCombat.DodgeCooldownRemaining:0.00}  iFrames:{_playerCombat.IsDodgeInvulnerable}", x+10, y+82, 18, Color.White);
+        Raylib.DrawText($"Stamina: {_playerCombat.Stamina:0.0}", x+10, y+106, 18, Color.White);
         GoblinEnemy? g = _map.Enemies.OfType<GoblinEnemy>().FirstOrDefault();
-        if (g is not null){ Raylib.DrawText($"EnemyState: {g.CombatState} Timer:{g.StateTimer:0.00}", x+10, y+90, 18, Color.Yellow); Raylib.DrawText($"EnemyRange:{GoblinEnemy.AttackRange:0} LOS:{g.HasLineOfSightToPlayer}", x+10, y+114, 18, Color.Yellow);}    
+        if (g is not null){ Raylib.DrawText($"EnemyState: {g.CombatState} Timer:{g.StateTimer:0.00}", x+10, y+138, 18, Color.Yellow); Raylib.DrawText($"EnemyAttackType:{g.CurrentAttackType} LOS:{g.HasLineOfSightToPlayer}", x+10, y+162, 18, Color.Yellow);}
+        Raylib.DrawText($"Last Enemy Result: {_lastEnemyAttackResult}", x+10, y+190, 18, Color.Orange);
     }
 
     public void Dispose(){ _audio.Dispose(); _textures.Dispose(); }
