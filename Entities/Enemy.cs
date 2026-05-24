@@ -4,42 +4,42 @@ using System.Numerics;
 
 namespace DungeonCrawler.Entities;
 
+public enum EnemyCombatState
+{
+    Idle,
+    Chasing,
+    TelegraphingAttack,
+    Attacking,
+    Recovering,
+    Staggered,
+    Dead
+}
+
 public abstract class Enemy : Entity
 {
     public float Health { get; protected set; }
     public float Radius { get; protected set; }
     public float MoveSpeed { get; protected set; }
     public bool IsAlive => Health > 0f;
-    public Texture2D Texture { get; }
     public float DistanceToPlayer { get; set; }
     public float HitFlashAmount => Math.Clamp(_hitFlashTimer / 0.15f, 0f, 1f);
+    public EnemyCombatState CombatState { get; protected set; } = EnemyCombatState.Idle;
+    public abstract Texture2D CurrentTexture { get; }
 
     private float _hitFlashTimer;
 
-    protected Enemy(Vector2 position, Texture2D texture) : base(position)
-    {
-        Texture = texture;
-    }
+    protected Enemy(Vector2 position) : base(position) { }
 
-    public void TakeDamage(float damage)
+    public virtual void TakeDamage(float damage, Vector2 hitDirection)
     {
         if (!IsAlive) return;
         Health -= damage;
         _hitFlashTimer = 0.15f;
-
-        Console.WriteLine($"[Combat] {GetType().Name} took {damage:0} damage. HP={MathF.Max(0f, Health):0}");
-        if (!IsAlive)
-        {
-            Console.WriteLine($"[Combat] {GetType().Name} died.");
-        }
+        if (!IsAlive) CombatState = EnemyCombatState.Dead;
     }
 
     public abstract void Update(float dt, Vector2 playerPos, DungeonMap map);
-
-    public void SetPosition(Vector2 position)
-    {
-        Position = position;
-    }
+    public void SetPosition(Vector2 position) => Position = position;
 
     protected bool HitsWall(DungeonMap map, float x, float y)
     {
@@ -49,8 +49,5 @@ public abstract class Enemy : Entity
             || map.IsBlockedAtWorld(x + Radius, y + Radius);
     }
 
-    protected void TickTimers(float dt)
-    {
-        _hitFlashTimer = MathF.Max(0f, _hitFlashTimer - dt);
-    }
+    protected void TickTimers(float dt) => _hitFlashTimer = MathF.Max(0f, _hitFlashTimer - dt);
 }

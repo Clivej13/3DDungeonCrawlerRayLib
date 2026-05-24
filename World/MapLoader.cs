@@ -10,14 +10,14 @@ public static class MapLoader
 
     public static System.Numerics.Vector2 ToWorldPosition(int tileX, int tileY, int tileSize)
         => new(TileToWorld(tileX, tileSize), TileToWorld(tileY, tileSize));
-    public static List<Enemy> BuildEnemies(IEnumerable<EnemySpawnData> spawns, Texture2D goblinTexture)
+    public static List<Enemy> BuildEnemies(IEnumerable<EnemySpawnData> spawns, Texture2D goblinTexture, Texture2D goblinWindupTexture, Texture2D goblinAttackTexture)
     {
         List<Enemy> enemies = [];
         foreach (EnemySpawnData spawn in spawns)
         {
             if (spawn.Type.Equals("goblin", StringComparison.OrdinalIgnoreCase))
             {
-                enemies.Add(new GoblinEnemy(new System.Numerics.Vector2(spawn.X, spawn.Y), goblinTexture));
+                enemies.Add(new GoblinEnemy(new System.Numerics.Vector2(spawn.X, spawn.Y), goblinTexture, goblinWindupTexture, goblinAttackTexture));
             }
         }
 
