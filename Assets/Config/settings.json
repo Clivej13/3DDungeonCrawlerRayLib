@@ -1,7 +1,7 @@
 {
   "ResolutionIndex": 0,
   "IsFullscreen": false,
-  "DebugModeEnabled": true,
+  "DebugModeEnabled": false,
   "DisableHealth": true,
   "DisableCollision": true,
   "DisableKeyRequirements": false
