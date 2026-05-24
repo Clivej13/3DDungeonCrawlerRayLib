@@ -20,9 +20,11 @@ public sealed class ControlsMenuScreen : ScrollableMenuBase
             new MenuOption("Strafe Left = A", () => { }),
             new MenuOption("Strafe Right = D", () => { }),
             new MenuOption("Attack = Left Mouse Button", () => { }),
+            new MenuOption("Dodge = Space", () => { }),
+            new MenuOption("Sprint = C", () => { }),
             new MenuOption("Pause/Menu = Escape", () => { }),
             new MenuOption("Interact = E", () => { }),
-            new MenuOption("Sprint = Left Shift", () => { }),
+            new MenuOption("Combat Debug Overlay = Settings > Combat Debug", () => { }),
             new MenuOption("Back", () => _stateController.GoBack())
         });
     }

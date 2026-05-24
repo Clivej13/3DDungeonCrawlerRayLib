@@ -17,6 +17,7 @@ public sealed class PlayerController
     public Vector2 MoveInputDirection { get; private set; }
 
     public float MoveSpeed { get; set; } = 170f;
+    public float SprintMultiplier { get; set; } = 1.55f;
     public float RotationSpeed { get; set; } = 2.4f;
     public float MouseSensitivityX { get; set; } = 0.0035f;
     public float MouseSensitivityY { get; set; } = 0.65f;
@@ -25,6 +26,7 @@ public sealed class PlayerController
     public bool IsInvulnerable => _invulnerabilityTimer > 0f;
     public HashSet<string> CollectedKeyIds { get; } = new(StringComparer.OrdinalIgnoreCase);
     public bool IsMoving { get; private set; }
+    public bool IsSprinting { get; private set; }
 
     private float _invulnerabilityTimer;
     private float _damageFlashTimer;
@@ -42,6 +44,14 @@ public sealed class PlayerController
 
     public void Update(float deltaTime, IEnumerable<Enemy> enemies)
     {
+        if (!IsAlive)
+        {
+            MoveInputDirection = Vector2.Zero;
+            IsMoving = false;
+            IsSprinting = false;
+            return;
+        }
+
         _invulnerabilityTimer = MathF.Max(0f, _invulnerabilityTimer - deltaTime);
         _damageFlashTimer = MathF.Max(0f, _damageFlashTimer - deltaTime);
 
@@ -62,8 +72,10 @@ public sealed class PlayerController
         Vector2 velocity = ReadMoveInput();
         MoveInputDirection = velocity;
         IsMoving = velocity.LengthSquared() > 0.0001f;
+        IsSprinting = IsMoving && Raylib.IsKeyDown(KeyboardKey.C);
 
-        Vector2 desired = Position + velocity * MoveSpeed * deltaTime;
+        float currentMoveSpeed = MoveSpeed * (IsSprinting ? SprintMultiplier : 1f);
+        Vector2 desired = Position + velocity * currentMoveSpeed * deltaTime;
         TryMoveTo(desired, _map, enemies);
     }
 

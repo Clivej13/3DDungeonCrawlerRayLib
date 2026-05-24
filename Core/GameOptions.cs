@@ -10,6 +10,7 @@ public sealed class GameOptions
     public int ResolutionIndex { get; set; }
     public bool IsFullscreen { get; set; }
     public bool DebugModeEnabled { get; set; }
+    public bool CombatDebugOverlayEnabled { get; set; }
     public bool DisableHealth { get; set; }
     public bool DisableCollision { get; set; }
     public bool DisableKeyRequirements { get; set; }
@@ -19,6 +20,7 @@ public sealed class GameOptions
         ResolutionIndex = 0,
         IsFullscreen = false,
         DebugModeEnabled = false,
+        CombatDebugOverlayEnabled = false,
         DisableHealth = false,
         DisableCollision = false,
         DisableKeyRequirements = false

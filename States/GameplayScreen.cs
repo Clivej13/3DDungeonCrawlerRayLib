@@ -11,7 +11,7 @@ namespace DungeonCrawler.States;
 
 public sealed class GameplayScreen : IDisposable
 {
-    private enum GameplayPhase { Playing, Victory }
+    private enum GameplayPhase { Playing, Victory, Dead }
 
     private readonly GameStateController _stateController;
     private readonly DungeonMap _map;
@@ -28,7 +28,6 @@ public sealed class GameplayScreen : IDisposable
     private float _levelTimer;
     private float _statusTextTimer;
     private string _statusText = string.Empty;
-    private bool _showCombatDebug;
 
     public GameplayScreen(GameStateController stateController, GameOptions options)
     {
@@ -48,8 +47,6 @@ public sealed class GameplayScreen : IDisposable
     {
         _levelTimer += deltaTime;
         _statusTextTimer = MathF.Max(0f, _statusTextTimer - deltaTime);
-        if (Raylib.IsKeyPressed(KeyboardKey.F3)) _showCombatDebug = !_showCombatDebug;
-
         if (_phase == GameplayPhase.Playing)
         {
             _player.Update(deltaTime, _map.Enemies);
@@ -57,7 +54,7 @@ public sealed class GameplayScreen : IDisposable
             _weaponRenderer.Update(deltaTime);
 
             if (Raylib.IsMouseButtonPressed(MouseButton.Left) && _playerCombat.TryStartAttack()) _weaponRenderer.TriggerAttack();
-            if (Raylib.IsKeyPressed(KeyboardKey.Space) || Raylib.IsKeyPressed(KeyboardKey.LeftShift)) _playerCombat.TryStartDodge(_player.MoveInputDirection, _player.Angle);
+            if (Raylib.IsKeyPressed(KeyboardKey.Space)) _playerCombat.TryStartDodge(_player.MoveInputDirection, _player.Angle);
 
             foreach (Enemy enemy in _map.Enemies)
             {
@@ -68,6 +65,7 @@ public sealed class GameplayScreen : IDisposable
             ResolveEnemySeparation();
             HandleMeleeCombat();
             HandleEnemyCombat();
+            if (!_player.IsAlive) _phase = GameplayPhase.Dead;
             HandleProgression();
             _doorSystem.Update(deltaTime, _player, _map.Enemies);
             _audio.Update(deltaTime, _player, _map.Enemies.OfType<GoblinEnemy>());
@@ -122,7 +120,19 @@ public sealed class GameplayScreen : IDisposable
         Raylib.DisableCursor(); _renderer.Draw(_player); _renderer.DrawMinimap(_player); _weaponRenderer.Draw();
         Raylib.DrawText($"HP: {_player.Health:0}", 18, Raylib.GetScreenHeight()-120, 24, Color.Lime);
         Raylib.DrawText($"Stamina: {_playerCombat.Stamina:0}", 18, Raylib.GetScreenHeight()-92, 22, _playerCombat.Stamina > 25f ? Color.SkyBlue : Color.Orange);
-        if (_showCombatDebug) DrawCombatDebug();
+        if (_options.CombatDebugOverlayEnabled) DrawCombatDebug();
+        if (_phase == GameplayPhase.Dead)
+        {
+            const string deathText = "You Died";
+            const string hintText = "Press ESC for Pause Menu";
+            int centerX = Raylib.GetScreenWidth() / 2;
+            int centerY = Raylib.GetScreenHeight() / 2;
+            int deathWidth = Raylib.MeasureText(deathText, 56);
+            int hintWidth = Raylib.MeasureText(hintText, 24);
+            Raylib.DrawRectangle(0, 0, Raylib.GetScreenWidth(), Raylib.GetScreenHeight(), new Color(0, 0, 0, 145));
+            Raylib.DrawText(deathText, centerX - deathWidth / 2, centerY - 36, 56, Color.Red);
+            Raylib.DrawText(hintText, centerX - hintWidth / 2, centerY + 34, 24, Color.LightGray);
+        }
     }
 
     private void DrawCombatDebug()
